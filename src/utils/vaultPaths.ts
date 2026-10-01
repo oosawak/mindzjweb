@@ -1,4 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { getBackendKind } from "../backend";
 
 export const DEFAULT_ATTACHMENT_FOLDER = ".mindzj/images";
 
@@ -64,6 +65,11 @@ export function resolveNoteRelativePath(
 }
 
 export function toVaultAssetUrl(vaultRoot: string, relativePath: string): string {
+  if (getBackendKind() === "web") {
+    const relative = normalizeVaultRelativePath(relativePath, "");
+    return `/api/assets/${relative.split("/").map(encodeURIComponent).join("/")}`;
+  }
+
   let root = normalizeSlashes(vaultRoot).replace(/\/+$/g, "");
   // Strip Windows extended-length path prefix added by Rust's
   // fs::canonicalize().  \\?\ becomes //?/ after normalizeSlashes.

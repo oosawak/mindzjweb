@@ -1,5 +1,5 @@
 import { createSignal, createRoot, createEffect } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../backend";
 import { DEFAULT_ATTACHMENT_FOLDER } from "../utils/vaultPaths";
 import {
     BUILT_IN_SKIN_IDS,

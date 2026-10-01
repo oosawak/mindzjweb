@@ -1,5 +1,5 @@
 import { Component, For, Show, createMemo, createResource } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { vaultStore } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
 import { openFileRouted } from "../../utils/openFileRouted";

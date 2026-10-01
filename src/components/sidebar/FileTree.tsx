@@ -1,5 +1,5 @@
 import { Component, For, Show, createSignal, createEffect, onMount, onCleanup } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { confirmDialog, promptDialog } from "../common/ConfirmDialog";
 import type { FileMetadata, VaultEntry } from "../../stores/vault";
 import { vaultStore } from "../../stores/vault";
@@ -11,9 +11,29 @@ import { openFileRouted } from "../../utils/openFileRouted";
 import { isMarkdownPath } from "../../utils/fileTypes";
 import { reorderVisibleNames } from "../../utils/fileOrder";
 import { remapMovedPath } from "../../utils/pathMove";
+import { toVaultAssetUrl } from "../../utils/vaultPaths";
 import { t } from "../../i18n";
 
 type FolderVisibilityAction = "default" | "collapse" | "expand";
+
+function getFileBadge(extension: string): { label: string; color: string; background: string } {
+    const ext = extension.toLowerCase();
+    const colors =
+        ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tif", "tiff"].includes(ext)
+            ? { color: "#c084fc", background: "rgba(192,132,252,0.12)" }
+            : ext === "pdf"
+              ? { color: "#f87171", background: "rgba(248,113,113,0.12)" }
+              : ["mp3", "wav", "ogg", "flac", "aac", "m4a", "opus"].includes(ext)
+                ? { color: "#4ade80", background: "rgba(74,222,128,0.12)" }
+                : ["mp4", "mov", "webm", "mkv", "avi"].includes(ext)
+                  ? { color: "#fb923c", background: "rgba(251,146,60,0.12)" }
+                  : ["glb", "gltf", "obj", "fbx", "stl", "usd", "usdz", "blend", "uasset", "umap"].includes(ext)
+                    ? { color: "#60a5fa", background: "rgba(96,165,250,0.12)" }
+                    : ["zip", "rar", "7z", "tar", "gz"].includes(ext)
+                      ? { color: "#fbbf24", background: "rgba(251,191,36,0.12)" }
+                      : { color: "var(--mz-text-muted)", background: "var(--mz-bg-tertiary)" };
+    return { label: ext.slice(0, 4).toUpperCase(), ...colors };
+}
 
 const [folderVisibilityMode, setFolderVisibilityMode] =
     createSignal<FolderVisibilityAction>("default");
@@ -1016,6 +1036,8 @@ export const SortBar: Component<{
 // ---------------------------------------------------------------------------
 
 export const FileTree: Component<FileTreeProps> = (props) => {
+    let resourceInput: HTMLInputElement | undefined;
+    const [resourceTargetDir, setResourceTargetDir] = createSignal("");
     const [menu, setMenu] = createSignal<{ show: boolean; x: number; y: number; items: MenuItem[] }>({
         show: false, x: 0, y: 0, items: [],
     });
@@ -1087,6 +1109,69 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         }
     }
 
+    function addResourcesTo(dirPath: string) {
+        setResourceTargetDir(dirPath);
+        if (resourceInput) {
+            resourceInput.value = "";
+            resourceInput.click();
+        }
+    }
+
+    async function importSelectedResources(files: FileList | null) {
+        if (!files?.length) return;
+        const paths = new Set<string>();
+        const collectPaths = (entries: VaultEntry[]) => {
+            for (const entry of entries) {
+                paths.add(entry.relative_path);
+                if (entry.children) collectPaths(entry.children);
+            }
+        };
+        collectPaths(vaultStore.fileTree());
+        const dirPath = resourceTargetDir();
+        for (const file of Array.from(files)) {
+            const baseName = file.name.split(/[\\/]/).pop()?.replace(/[\x00-\x1f]/g, "").trim();
+            if (!baseName || baseName === "." || baseName === "..") continue;
+            const dot = baseName.lastIndexOf(".");
+            const stem = dot > 0 ? baseName.slice(0, dot) : baseName;
+            const extension = dot > 0 ? baseName.slice(dot) : "";
+            let candidate = dirPath ? `${dirPath}/${baseName}` : baseName;
+            let suffix = 2;
+            while (paths.has(candidate)) {
+                const name = `${stem} (${suffix++})${extension}`;
+                candidate = dirPath ? `${dirPath}/${name}` : name;
+            }
+            try {
+                const bytes = new Uint8Array(await file.arrayBuffer());
+                let binary = "";
+                const chunkSize = 0x8000;
+                for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+                    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+                }
+                await invoke("write_binary_file", { relativePath: candidate, base64Data: btoa(binary) });
+                paths.add(candidate);
+            } catch (error) {
+                console.error(`Failed to import resource ${file.name}:`, error);
+            }
+        }
+        await vaultStore.refreshFileTree();
+    }
+
+    async function downloadResource(path: string) {
+        try {
+            const root = vaultStore.vaultInfo()?.path ?? "";
+            const response = await fetch(toVaultAssetUrl(root, path));
+            if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+            const url = URL.createObjectURL(await response.blob());
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = path.split(/[\\/]/).pop() ?? "download";
+            anchor.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+            console.error("Failed to download resource:", error);
+        }
+    }
+
     /** Reusable rename trigger — activates inline rename input */
     function renameEntry(path: string, isDir: boolean) {
         startInlineRename(path, isDir);
@@ -1129,6 +1214,10 @@ export const FileTree: Component<FileTreeProps> = (props) => {
             action: async () => { const n = await promptDialog(t("fileTree.folderNamePrompt")); if (n) await vaultStore.createDir(dirPath ? `${dirPath}/${n}` : n); },
         });
         items.push({
+            label: t("context.addResource"), icon: "＋", separator: true,
+            action: () => addResourcesTo(dirPath),
+        });
+        items.push({
             label: t("context.newMindMap"), icon: "\uD83D\uDDFA\uFE0F", separator: true,
             action: async () => {
                 const n = await promptDialog(t("fileTree.mindzjFileNamePrompt"), t("fileTree.newMindzjDefault"));
@@ -1145,6 +1234,7 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         });
         items.push({ label: t("context.showInExplorer"), icon: "\uD83D\uDCC2", action: () => showInExplorer(path) });
         if (!isDir) {
+            items.push({ label: t("context.download"), icon: "\u2B07", action: () => { void downloadResource(path); } });
             items.push({
                 label: t("context.properties"),
                 icon: "ⓘ",
@@ -1202,6 +1292,7 @@ export const FileTree: Component<FileTreeProps> = (props) => {
                     await vaultStore.openFile(fileName);
                 }},
                 { label: t("context.newFolder"), icon: "\uD83D\uDCC1", action: async () => { const n = await promptDialog(t("fileTree.folderNamePrompt")); if (n) await vaultStore.createDir(n); }},
+                { label: t("context.addResource"), icon: "＋", separator: true, action: () => addResourcesTo("") },
                 { label: t("context.newMindMap"), icon: "\uD83D\uDDFA\uFE0F", action: async () => {
                     const n = await promptDialog(t("fileTree.mindzjFileNamePrompt"), t("fileTree.newMindzjDefault"));
                     if (!n) return;
@@ -1223,6 +1314,13 @@ export const FileTree: Component<FileTreeProps> = (props) => {
             style={{ "user-select": "none", "min-height": "100%", position: "relative" }}
             onContextMenu={showContextForEmpty}
         >
+            <input
+                ref={resourceInput}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                onChange={(event) => { void importSelectedResources(event.currentTarget.files); }}
+            />
             <For each={sortedEntries()}>
                 {(entry) => (
                     <Show
@@ -1429,6 +1527,7 @@ const FileItem: Component<{
 }> = (props) => {
     const pad = () => `${28 + props.depth * 16}px`;
     const isMindZJ = () => props.entry.extension === "mindzj";
+    const fileBadge = () => getFileBadge(props.entry.extension);
 
     return (
         <div
@@ -1458,8 +1557,8 @@ const FileItem: Component<{
                 when={isMindZJ()}
                 fallback={
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ "flex-shrink": "0", "pointer-events": "none" }}>
-                        <path d="M4 1.5h5.586a1 1 0 01.707.293l2.914 2.914a1 1 0 01.293.707V13.5a1 1 0 01-1 1H4a1 1 0 01-1-1v-11a1 1 0 011-1z" stroke="var(--mz-accent)" stroke-width="1" fill="none" />
-                        <path d="M9.5 1.5V5h3.5" stroke="var(--mz-accent)" stroke-width="1" fill="none" />
+                        <path d="M4 1.5h5.586a1 1 0 01.707.293l2.914 2.914a1 1 0 01.293.707V13.5a1 1 0 01-1 1H4a1 1 0 01-1-1v-11a1 1 0 011-1z" stroke={fileBadge().color} stroke-width="1" fill="none" />
+                        <path d="M9.5 1.5V5h3.5" stroke={fileBadge().color} stroke-width="1" fill="none" />
                     </svg>
                 }
             >
@@ -1479,6 +1578,11 @@ const FileItem: Component<{
                         <Show when={isMindZJ()}>
                             <span style={{ "font-size": "9px", color: "var(--mz-text-muted)", "flex-shrink": "0", "text-transform": "uppercase", "font-weight": "600", "letter-spacing": "0.5px", "pointer-events": "none" }}>
                                 MINDZJ
+                            </span>
+                        </Show>
+                        <Show when={fileBadge().label}>
+                            <span style={{ "font-size": "8px", color: fileBadge().color, background: fileBadge().background, "flex-shrink": "0", "font-weight": "700", "letter-spacing": "0.2px", "pointer-events": "none", padding: "1px 3px", "border-radius": "3px" }}>
+                                {fileBadge().label}
                             </span>
                         </Show>
                     </>

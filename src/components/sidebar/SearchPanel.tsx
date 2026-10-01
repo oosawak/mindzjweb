@@ -1,5 +1,5 @@
 import { Component, For, Show, createSignal, onCleanup, onMount } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { t } from "../../i18n";
 import { displayName } from "../../utils/displayName";
 import { openFileRouted } from "../../utils/openFileRouted";

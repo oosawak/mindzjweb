@@ -354,6 +354,16 @@ impl Vault {
         })
     }
 
+    /// Read raw bytes from a vault-relative path after the same traversal and
+    /// symlink checks used by text file operations.
+    pub fn read_binary(&self, relative_path: &str) -> KernelResult<Vec<u8>> {
+        let abs_path = self.resolve_safe_path(relative_path)?;
+        if !abs_path.is_file() {
+            return Err(KernelError::FileNotFound(relative_path.to_string()));
+        }
+        Ok(fs::read(abs_path)?)
+    }
+
     /// List all entries in a directory.
     pub fn list_entries(&self, relative_dir: &str) -> KernelResult<Vec<VaultEntry>> {
         let abs_path = if relative_dir.is_empty() {

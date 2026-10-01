@@ -1,5 +1,5 @@
 import { Component, For, Show, createSignal, onMount } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { getBackendKind, invoke } from "../../backend";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getLanguageOptions, t } from "../../i18n";
 import { settingsStore } from "../../stores/settings";
@@ -20,6 +20,9 @@ export const WelcomeScreen: Component = () => {
   const [isOpening, setIsOpening] = createSignal(false);
   const [errorMsg, setErrorMsg] = createSignal<string | null>(null);
   const [showLangDropdown, setShowLangDropdown] = createSignal(false);
+  const [webVaultAction, setWebVaultAction] = createSignal<"open" | "create" | null>(null);
+  const [webVaultPath, setWebVaultPath] = createSignal("");
+  const [webVaultName, setWebVaultName] = createSignal("");
   const [contextMenu, setContextMenu] = createSignal<{
     show: boolean;
     x: number;
@@ -139,6 +142,36 @@ export const WelcomeScreen: Component = () => {
       }
     } catch (error: any) {
       setErrorMsg(error?.message || t("welcome.createVaultError"));
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
+  const handleOpenServerVault = async () => {
+    const action = webVaultAction();
+    const nameInput = webVaultName().trim();
+    const path = action === "create"
+      ? `../mindzjweb/${nameInput}`
+      : webVaultPath().trim().replace(/[/\\]+$/, "");
+    if (action === "create" && (!nameInput || /[/\\]/.test(nameInput) || nameInput === "." || nameInput === "..")) {
+      setErrorMsg(t("welcome.webInvalidVaultName"));
+      return;
+    }
+    if (!path) return;
+    setIsOpening(true);
+    setErrorMsg(null);
+    try {
+      const name = action === "create"
+        ? nameInput
+        : path.split(/[/\\]/).pop() || t("app.vaultNameFallback");
+      if (!name) return;
+      await vaultStore.openVault(path, name);
+      addVaultToList(name, path);
+      setWebVaultAction(null);
+      setWebVaultPath("");
+      setWebVaultName("");
+    } catch (error: any) {
+      setErrorMsg(error?.message || t("welcome.openVaultError"));
     } finally {
       setIsOpening(false);
     }
@@ -364,7 +397,7 @@ export const WelcomeScreen: Component = () => {
       >
         <img
           src="/mindzj-logo.png"
-          alt="MindZJ logo"
+          alt={getBackendKind() === "web" ? "MindZJWeb logo" : "MindZJ logo"}
           width="64"
           height="64"
           style={{
@@ -387,7 +420,14 @@ export const WelcomeScreen: Component = () => {
             "margin-bottom": "4px",
           }}
         >
-          Mind<span style={{ color: "var(--mz-accent)" }}>ZJ</span>
+          {getBackendKind() === "web" ? (
+            <>
+              Mind<span style={{ color: "var(--mz-accent)" }}>ZJ</span>
+              <span style={{ color: "#4f8cff" }}>Web</span>
+            </>
+          ) : (
+            <>Mind<span style={{ color: "var(--mz-accent)" }}>ZJ</span></>
+          )}
         </div>
 
         <div
@@ -397,7 +437,9 @@ export const WelcomeScreen: Component = () => {
             "margin-bottom": "4px",
           }}
         >
-          {t("welcome.tagline")}
+          {getBackendKind() === "web"
+            ? t("welcome.webTagline")
+            : t("welcome.tagline")}
         </div>
 
         <div
@@ -423,7 +465,15 @@ export const WelcomeScreen: Component = () => {
           }}
         >
           <button
-            onClick={() => void handleCreateNewVault()}
+            onClick={() => {
+              if (getBackendKind() === "web") {
+                setWebVaultAction("create");
+                setWebVaultName("");
+                setErrorMsg(null);
+              } else {
+                void handleCreateNewVault();
+              }
+            }}
             disabled={isOpening()}
             style={primaryButtonStyle(isOpening())}
             onMouseEnter={(event) => {
@@ -451,11 +501,19 @@ export const WelcomeScreen: Component = () => {
                 stroke-linecap="round"
               />
             </svg>
-            {t("welcome.createNewVault")}
+            {getBackendKind() === "web" ? t("welcome.webCreateVault") : t("welcome.createNewVault")}
           </button>
 
           <button
-            onClick={() => void handleOpenLocalVault()}
+            onClick={() => {
+              if (getBackendKind() === "web") {
+                setWebVaultAction("open");
+                setWebVaultPath("");
+                setErrorMsg(null);
+              } else {
+                void handleOpenLocalVault();
+              }
+            }}
             disabled={isOpening()}
             style={secondaryButtonStyle}
             onMouseEnter={(event) => {
@@ -482,9 +540,96 @@ export const WelcomeScreen: Component = () => {
                 stroke-linecap="round"
               />
             </svg>
-            {isOpening() ? t("welcome.opening") : t("welcome.openLocalVault")}
+            {getBackendKind() === "web"
+              ? t("welcome.webOpenVault")
+              : isOpening()
+                ? t("welcome.opening")
+                : t("welcome.openLocalVault")}
           </button>
         </div>
+
+        <Show when={getBackendKind() === "web" && webVaultAction()}>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleOpenServerVault();
+            }}
+            style={{
+              display: "flex",
+              "flex-direction": "column",
+              gap: "8px",
+              width: "320px",
+              "margin-top": "4px",
+            }}
+          >
+            <label
+              for="server-vault-path"
+              style={{
+                color: "var(--mz-text-secondary)",
+                "font-size": "var(--mz-font-size-xs)",
+              }}
+            >
+              {webVaultAction() === "create"
+                ? t("welcome.webVaultName")
+                : t("welcome.webVaultPath")}
+            </label>
+            <input
+              id="server-vault-path"
+              type="text"
+              value={webVaultAction() === "create" ? webVaultName() : webVaultPath()}
+              onInput={(event) =>
+                webVaultAction() === "create"
+                  ? setWebVaultName(event.currentTarget.value)
+                  : setWebVaultPath(event.currentTarget.value)
+              }
+              placeholder={webVaultAction() === "create" ? t("welcome.webVaultNamePlaceholder") : "../mindzjweb/Notes"}
+              autocomplete="off"
+              spellcheck={false}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                border: "1px solid var(--mz-border-strong)",
+                "border-radius": "var(--mz-radius-md)",
+                background: "var(--mz-bg-secondary)",
+                color: "var(--mz-text-primary)",
+                "font-family": "var(--mz-font-mono)",
+                "font-size": "var(--mz-font-size-sm)",
+                outline: "none",
+              }}
+            />
+            <div
+              style={{
+                color: "var(--mz-text-muted)",
+                "font-size": "var(--mz-font-size-xs)",
+              }}
+            >
+              {webVaultAction() === "create"
+                ? t("welcome.webCreateDestination", { name: webVaultName().trim() || "<Vault name>" })
+                : t("welcome.webPathHelp")}
+            </div>
+            <div style={{ display: "flex", gap: "8px", "margin-top": "4px" }}>
+              <button
+                type="submit"
+                disabled={isOpening() || (webVaultAction() === "create" ? !webVaultName().trim() : !webVaultPath().trim())}
+                style={primaryButtonStyle(isOpening() || (webVaultAction() === "create" ? !webVaultName().trim() : !webVaultPath().trim()))}
+              >
+                {isOpening()
+                  ? t("welcome.opening")
+                  : webVaultAction() === "create"
+                    ? t("welcome.webCreate")
+                    : t("welcome.webOpen")}
+              </button>
+              <button
+                type="button"
+                disabled={isOpening()}
+                onClick={() => setWebVaultAction(null)}
+                style={secondaryButtonStyle}
+              >
+                {t("common.cancel")}
+              </button>
+            </div>
+          </form>
+        </Show>
 
         <div style={{ "margin-top": "24px", position: "relative" }}>
           <button

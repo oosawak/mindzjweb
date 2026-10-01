@@ -1,5 +1,5 @@
 import { createSignal, createRoot } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../backend";
 import type { ViewMode } from "./editor";
 
 type FileScrollPositionMap = Record<string, Partial<Record<ViewMode, number>>>;

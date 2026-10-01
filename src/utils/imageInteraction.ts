@@ -20,7 +20,7 @@
  *   a rapid stream of wheel events doesn't overwhelm CM6's layout.
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../backend";
 import { settingsStore } from "../stores/settings";
 import { openFileRouted } from "./openFileRouted";
 

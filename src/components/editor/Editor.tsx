@@ -73,7 +73,7 @@ import {
     setFindRegex,
 } from "../../stores/findState";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { vaultStore } from "../../stores/vault";
 import { editorStore, type ViewMode } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";

@@ -32,7 +32,7 @@ import {
     createHighlightRegex,
     createItalicRegex,
 } from "../../../utils/markdownInline";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../../backend";
 import { resolveImageAssetUrl } from "../../../utils/vaultPaths";
 import {
     attachWheelZoom,

@@ -7,7 +7,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { t } from "../../i18n";
 import { editorStore, type ViewMode } from "../../stores/editor";
 import type { FileContent } from "../../stores/vault";

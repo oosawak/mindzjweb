@@ -1,5 +1,5 @@
 import { createSignal, createRoot } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../backend";
 import { vaultStore } from "./vault";
 import { getClientPlatform } from "../utils/platform";
 import { toVaultAssetUrl } from "../utils/vaultPaths";

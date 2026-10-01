@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../backend";
 import { vaultStore } from "../stores/vault";
 import { hasPluginViewForExtension } from "../stores/plugins";
 import { getFileHandler } from "./fileTypes";
@@ -22,10 +22,11 @@ import { getFileHandler } from "./fileTypes";
  *   - Images (`.png`, `.jpg`, `.gif`, `.webp`, `.svg`, ...) → an
  *     in-app preview tab.
  *
+ *   - PDFs → an in-app PDF viewer tab.
  *   - `.doc/.docx` → an in-app document placeholder tab so the file
  *     stays in the workspace rather than jumping out to another app.
  *
- *   - Office documents, PDFs, archives, A/V files → the OS default
+ *   - Office documents, archives, A/V files → the OS default
  *     application (Word, Excel, Acrobat, the system media player).
  *     We can't render these inside WebView2 usefully.
  *
@@ -56,7 +57,7 @@ export async function openFileRouted(relativePath: string): Promise<void> {
 
         case "external": {
             // Delegate to the OS default app: Word/Writer for .doc,
-            // Excel/Calc for .xlsx/.csv, Acrobat/Preview for .pdf,
+            // Excel/Calc for .xlsx/.csv,
             // system media player for .mp4/.mp3, etc. The Rust
             // `open_in_default_app` command does `cmd /C start "" …`
             // on Windows, `open` on macOS, `xdg-open` on Linux.

@@ -7,7 +7,7 @@ import {
   on,
   onCleanup,
 } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { t } from "../../i18n";
 import { vaultStore } from "../../stores/vault";
 import { editorStore } from "../../stores/editor";

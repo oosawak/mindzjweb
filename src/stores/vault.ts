@@ -1,5 +1,5 @@
 import { createSignal, createRoot } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../backend";
 import { remapMovedPath, remapUniquePathItems } from "../utils/pathMove";
 
 // ---------------------------------------------------------------------------

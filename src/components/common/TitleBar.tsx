@@ -1,6 +1,6 @@
 import { Component, Show, createSignal, onMount, onCleanup } from "solid-js";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { invoke } from "@tauri-apps/api/core";
+import { getBackendKind, invoke } from "../../backend";
 import { createPersistableWindowState } from "../../utils/windowState";
 import { editorStore } from "../../stores/editor";
 import { getClientPlatform } from "../../utils/platform";
@@ -10,6 +10,7 @@ import { getClientPlatform } from "../../utils/platform";
  * Designed to be embedded in the tab bar — no wrapping container or drag region.
  */
 export const WindowControls: Component = () => {
+    if (getBackendKind() !== "tauri") return null;
     const [isMaximized, setIsMaximized] = createSignal(false);
     const appWindow = getCurrentWindow();
     const platform = getClientPlatform();

@@ -1,12 +1,14 @@
 import { Component, For, Show, createMemo, createSignal, onCleanup } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { formatMonthYear, getMonthLabels, getWeekdayLabels, t } from "../../i18n";
 import { vaultStore, type VaultEntry } from "../../stores/vault";
+import { displayName } from "../../utils/displayName";
 
 interface CalendarDay {
   day: number;
   dateStr: string;
   hasNote: boolean;
+  hasDailyNote: boolean;
   isCurrentMonth: boolean;
   isToday: boolean;
 }
@@ -25,7 +27,7 @@ function dailyNotePath(dateStr: string): string {
   return `diary/${year}/${month}/${dateStr}.md`;
 }
 
-function collectDiaryDates(entries: VaultEntry[], result: Set<string>) {
+function collectDiaryDates(entries: VaultEntry[], result: { all: Set<string>; daily: Set<string> }) {
   for (const entry of entries) {
     if (entry.is_dir && entry.children) {
       collectDiaryDates(entry.children, result);
@@ -36,8 +38,11 @@ function collectDiaryDates(entries: VaultEntry[], result: Set<string>) {
       continue;
     }
 
-    const match = entry.name.match(/^(\d{4}-\d{2}-\d{2})\.md$/);
-    if (match) result.add(match[1]);
+    const match = entry.name.match(/^(\d{4}-\d{2}-\d{2})(?:_|\.md$)/);
+    if (match) {
+      result.all.add(match[1]);
+      if (entry.name === `${match[1]}.md`) result.daily.add(match[1]);
+    }
   }
 }
 
@@ -49,6 +54,9 @@ export const Calendar: Component = () => {
   // today on first mount so the bottom button does something useful
   // even before the user clicks anything.
   const [selectedDate, setSelectedDate] = createSignal<string>(todayStr());
+  const [documentType, setDocumentType] = createSignal<"report" | "minutes" | null>(null);
+  const [reporterName, setReporterName] = createSignal("");
+  const [documentTitle, setDocumentTitle] = createSignal("");
   // Currently-hovered date. Tracked as a signal so the background
   // style is computed reactively instead of being mutated imperatively
   // via `event.currentTarget.style`. Imperative mutation has a bug:
@@ -68,9 +76,33 @@ export const Calendar: Component = () => {
   // both are imperative one-shot actions with no popup.)
 
   const existingNotes = createMemo(() => {
-    const result = new Set<string>();
+    const result = { all: new Set<string>(), daily: new Set<string>() };
     collectDiaryDates(vaultStore.fileTree(), result);
     return result;
+  });
+
+  const selectedDateFiles = createMemo(() => {
+    const date = selectedDate();
+    const [yyyy, mm] = date.split("-");
+    const folder = `diary/${yyyy}/${mm}/`;
+    const result: VaultEntry[] = [];
+    const visit = (entries: VaultEntry[]) => {
+      for (const entry of entries) {
+        if (entry.is_dir) {
+          if (entry.children) visit(entry.children);
+          continue;
+        }
+        if (
+          entry.extension.toLowerCase() === "md" &&
+          entry.relative_path.startsWith(folder) &&
+          (entry.name === `${date}.md` || entry.name.startsWith(`${date}_`))
+        ) {
+          result.push(entry);
+        }
+      }
+    };
+    visit(vaultStore.fileTree());
+    return result.sort((a, b) => a.name.localeCompare(b.name));
   });
 
   const weekdayLabels = createMemo(() => getWeekdayLabels());
@@ -93,7 +125,8 @@ export const Calendar: Component = () => {
       days.push({
         day,
         dateStr,
-        hasNote: existingNotes().has(dateStr),
+        hasNote: existingNotes().all.has(dateStr),
+        hasDailyNote: existingNotes().daily.has(dateStr),
         isCurrentMonth: false,
         isToday: dateStr === now,
       });
@@ -104,7 +137,8 @@ export const Calendar: Component = () => {
       days.push({
         day,
         dateStr,
-        hasNote: existingNotes().has(dateStr),
+        hasNote: existingNotes().all.has(dateStr),
+        hasDailyNote: existingNotes().daily.has(dateStr),
         isCurrentMonth: true,
         isToday: dateStr === now,
       });
@@ -118,7 +152,8 @@ export const Calendar: Component = () => {
       days.push({
         day,
         dateStr,
-        hasNote: existingNotes().has(dateStr),
+        hasNote: existingNotes().all.has(dateStr),
+        hasDailyNote: existingNotes().daily.has(dateStr),
         isCurrentMonth: false,
         isToday: dateStr === now,
       });
@@ -153,7 +188,7 @@ export const Calendar: Component = () => {
   };
 
   const openDailyNote = async (dateStr: string) => {
-    if (!existingNotes().has(dateStr)) return;
+    if (!existingNotes().daily.has(dateStr)) return;
     const path = dailyNotePath(dateStr);
     try {
       await vaultStore.openFile(path);
@@ -171,7 +206,7 @@ export const Calendar: Component = () => {
     // Try to open first — if it exists in the vault, openFile succeeds
     // and we're done. We can't rely solely on `existingNotes()` because
     // the file tree might not have refreshed yet.
-    if (existingNotes().has(dateStr)) {
+    if (existingNotes().daily.has(dateStr)) {
       try {
         await vaultStore.openFile(path);
         return;
@@ -194,6 +229,62 @@ export const Calendar: Component = () => {
     }
   };
 
+  const startDocument = (type: "report" | "minutes") => {
+    setReporterName("");
+    setDocumentTitle("");
+    setDocumentType(type);
+  };
+
+  const createDocument = async () => {
+    const type = documentType();
+    const reporter = reporterName().trim();
+    const title = documentTitle().trim();
+    if (!type || !reporter || !title) return;
+    const safePart = (value: string) => value
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, "-")
+      .replace(/\s+/g, " ")
+      .replace(/[. ]+$/g, "")
+      .trim() || "document";
+    const [yyyy, mm] = selectedDate().split("-");
+    const folder = `diary/${yyyy}/${mm}`;
+    const typeName = type === "report" ? "report" : "minutes";
+    const base = `${selectedDate()}_${typeName}_${safePart(title)}_${safePart(reporter)}`;
+    const paths = new Set<string>();
+    const collectPaths = (entries: VaultEntry[]) => {
+      for (const entry of entries) {
+        paths.add(entry.relative_path);
+        if (entry.children) collectPaths(entry.children);
+      }
+    };
+    collectPaths(vaultStore.fileTree());
+    let path = `${folder}/${base}.md`;
+    let suffix = 2;
+    while (paths.has(path)) path = `${folder}/${base}-${suffix++}.md`;
+
+    const lines = [
+      `# ${title}`,
+      "",
+      `- ${t("calendar.documentDate")}: ${selectedDate()}`,
+      `- ${t("calendar.reporterName")}: ${reporter}`,
+      "",
+    ];
+    const sections = type === "report"
+      ? ["calendar.reportDone", "calendar.reportNext", "calendar.reportIssues"]
+      : ["calendar.minutesAgenda", "calendar.minutesParticipants", "calendar.minutesDiscussion", "calendar.minutesDecisions", "calendar.minutesActions", "calendar.minutesNextMeeting"];
+    for (const section of sections) lines.push(`## ${t(section)}`, "", "");
+
+    try {
+      await invoke("create_dir", { relativePath: "diary" }).catch(() => {});
+      await invoke("create_dir", { relativePath: `diary/${yyyy}` }).catch(() => {});
+      await invoke("create_dir", { relativePath: folder }).catch(() => {});
+      await vaultStore.createFile(path, `${lines.join("\n")}\n`);
+      setDocumentType(null);
+      await vaultStore.openFile(path);
+    } catch (error) {
+      console.error("Failed to create calendar document:", error);
+    }
+  };
+
   const handleDayClick = (day: CalendarDay) => {
     // Single-click selects (and jumps month if needed). Double-click
     // (or single-click on a date that already has a note) opens the
@@ -210,9 +301,9 @@ export const Calendar: Component = () => {
     // Auto-open if the date already has a note (one click = open).
     // For dates without a note, the user has to use the bottom button
     // or right-click → create.
-    if (day.hasNote && wasSelected) {
+    if (day.hasDailyNote && wasSelected) {
       void openDailyNote(day.dateStr);
-    } else if (day.hasNote) {
+    } else if (day.hasDailyNote) {
       void openDailyNote(day.dateStr);
     }
   };
@@ -469,6 +560,115 @@ export const Calendar: Component = () => {
           : `${t("calendar.newNoteForSelected")} (${selectedDate()})`}
       </button>
 
+      <div style={{ display: "flex", gap: "6px", "margin-top": "6px" }}>
+        <button onClick={() => startDocument("report")} style={templateButtonStyle}>
+          {t("calendar.newDailyReport")}
+        </button>
+        <button onClick={() => startDocument("minutes")} style={templateButtonStyle}>
+          {t("calendar.newMeetingMinutes")}
+        </button>
+      </div>
+
+      <div style={{ "margin-top": "10px", "border-top": "1px solid var(--mz-border)", padding: "8px 2px 0" }}>
+        <div style={{ "margin-bottom": "5px", color: "var(--mz-text-muted)", "font-size": "10px", "font-weight": "600" }}>
+          {t("calendar.filesForDate", { date: selectedDate() })}
+        </div>
+        <Show
+          when={selectedDateFiles().length > 0}
+          fallback={<div style={{ padding: "4px 2px", color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)" }}>{t("calendar.noFilesForDate")}</div>}
+        >
+          <div style={{ display: "flex", "flex-direction": "column", gap: "2px", "max-height": "132px", "overflow-y": "auto" }}>
+            <For each={selectedDateFiles()}>
+              {(entry) => {
+                const typeLabel = () => entry.name === `${selectedDate()}.md`
+                  ? t("calendar.dailyNote")
+                  : entry.name.includes("_minutes_")
+                    ? t("calendar.newMeetingMinutes")
+                    : t("calendar.newDailyReport");
+                return (
+                  <button
+                    title={entry.relative_path}
+                    onClick={() => { void vaultStore.openFile(entry.relative_path).catch((error) => console.error("Failed to open calendar file:", error)); }}
+                    style={{
+                      display: "flex",
+                      "align-items": "center",
+                      gap: "6px",
+                      width: "100%",
+                      padding: "5px 6px",
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--mz-text-secondary)",
+                      cursor: "pointer",
+                      "text-align": "left",
+                      "border-radius": "var(--mz-radius-sm)",
+                      "font-size": "var(--mz-font-size-xs)",
+                      "font-family": "var(--mz-font-sans)",
+                    }}
+                    onMouseEnter={(event) => { event.currentTarget.style.background = "var(--mz-bg-hover)"; }}
+                    onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ color: "var(--mz-accent)", "font-size": "9px", "font-weight": "700", "white-space": "nowrap" }}>{typeLabel()}</span>
+                    <span style={{ overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>{displayName(entry.name)}</span>
+                  </button>
+                );
+              }}
+            </For>
+          </div>
+        </Show>
+      </div>
+
+      <Show when={documentType()}>
+        {(type) => (
+          <div
+            role="presentation"
+            onClick={(event) => { if (event.target === event.currentTarget) setDocumentType(null); }}
+            style={{
+              position: "fixed",
+              inset: "0",
+              display: "flex",
+              "align-items": "center",
+              "justify-content": "center",
+              background: "rgba(0,0,0,0.48)",
+              "z-index": "20000",
+              padding: "16px",
+            }}
+          >
+            <form
+              onSubmit={(event) => { event.preventDefault(); void createDocument(); }}
+              style={{
+                width: "min(420px, 100%)",
+                display: "flex",
+                "flex-direction": "column",
+                gap: "12px",
+                padding: "22px",
+                background: "var(--mz-bg-secondary)",
+                border: "1px solid var(--mz-border-strong)",
+                "border-radius": "var(--mz-radius-lg)",
+                "box-shadow": "0 12px 40px rgba(0,0,0,0.35)",
+                "font-family": "var(--mz-font-sans)",
+              }}
+            >
+              <h2 style={{ margin: "0 0 4px", color: "var(--mz-text-primary)", "font-size": "var(--mz-font-size-lg)" }}>
+                {type() === "report" ? t("calendar.reportDialogTitle") : t("calendar.minutesDialogTitle")}
+              </h2>
+              <div style={{ color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-sm)" }}>{selectedDate()}</div>
+              <label style={fieldLabelStyle}>
+                {t("calendar.reporterName")}
+                <input required value={reporterName()} onInput={(event) => setReporterName(event.currentTarget.value)} style={fieldInputStyle} />
+              </label>
+              <label style={fieldLabelStyle}>
+                {t("calendar.documentTitle")}
+                <input required value={documentTitle()} onInput={(event) => setDocumentTitle(event.currentTarget.value)} style={fieldInputStyle} />
+              </label>
+              <div style={{ display: "flex", "justify-content": "flex-end", gap: "8px", "margin-top": "4px" }}>
+                <button type="button" onClick={() => setDocumentType(null)} style={dialogButtonStyle(false)}>{t("common.cancel")}</button>
+                <button type="submit" style={dialogButtonStyle(true)}>{t("calendar.createDocument")}</button>
+              </div>
+            </form>
+          </div>
+        )}
+      </Show>
+
       {/* Year/month picker popup — overlays the calendar grid */}
       <Show when={showPicker()}>
         <div
@@ -691,6 +891,51 @@ const navButtonStyle = {
   "font-family": "var(--mz-font-sans)",
   "flex-shrink": "0",
 } as const;
+
+const templateButtonStyle = {
+  flex: "1",
+  padding: "7px 4px",
+  border: "1px solid var(--mz-border)",
+  background: "var(--mz-bg-secondary)",
+  color: "var(--mz-text-secondary)",
+  cursor: "pointer",
+  "border-radius": "var(--mz-radius-md)",
+  "font-size": "var(--mz-font-size-xs)",
+  "font-family": "var(--mz-font-sans)",
+} as const;
+
+const fieldLabelStyle = {
+  display: "flex",
+  "flex-direction": "column",
+  gap: "6px",
+  color: "var(--mz-text-secondary)",
+  "font-size": "var(--mz-font-size-sm)",
+} as const;
+
+const fieldInputStyle = {
+  width: "100%",
+  "box-sizing": "border-box",
+  padding: "9px 10px",
+  border: "1px solid var(--mz-border)",
+  "border-radius": "var(--mz-radius-sm)",
+  background: "var(--mz-bg-primary)",
+  color: "var(--mz-text-primary)",
+  "font-size": "var(--mz-font-size-sm)",
+  "font-family": "var(--mz-font-sans)",
+} as const;
+
+function dialogButtonStyle(primary: boolean) {
+  return {
+    padding: "7px 12px",
+    border: primary ? "1px solid var(--mz-accent)" : "1px solid var(--mz-border)",
+    "border-radius": "var(--mz-radius-sm)",
+    background: primary ? "var(--mz-accent)" : "transparent",
+    color: primary ? "var(--mz-text-on-accent)" : "var(--mz-text-secondary)",
+    cursor: "pointer",
+    "font-size": "var(--mz-font-size-sm)",
+    "font-family": "var(--mz-font-sans)",
+  } as const;
+}
 
 function hoverIn(event: MouseEvent) {
   (event.currentTarget as HTMLElement).style.background = "var(--mz-bg-hover)";

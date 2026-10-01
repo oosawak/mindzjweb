@@ -13,7 +13,7 @@ import {
     onMount,
     onCleanup,
 } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { Eye, EyeOff } from "lucide-solid";
 import {

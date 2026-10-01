@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>MindZJWeb — Pages preview</title>
+  <style>
+    :root { color-scheme: dark; font: 15px/1.55 Inter, ui-sans-serif, system-ui, sans-serif; color: #e5e7eb; background: #111318; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    button, textarea { font: inherit; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+    aside { padding: 22px 14px; background: #171a21; border-right: 1px solid #292e38; }
+    .brand { padding: 0 10px 22px; font-size: 21px; font-weight: 750; letter-spacing: -.04em; }
+    .brand span { color: #65a4ff; }
+    .section { margin: 12px 10px 7px; color: #858d9b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; }
+    .note-list { display: grid; gap: 3px; }
+    .note { width: 100%; border: 0; border-radius: 7px; padding: 8px 10px; text-align: left; color: #cbd2de; background: transparent; cursor: pointer; }
+    .note:hover, .note.active { color: #fff; background: #252b36; }
+    .add { width: 100%; margin-top: 12px; padding: 8px; border: 1px dashed #414b5d; border-radius: 7px; color: #b8c2d2; background: transparent; cursor: pointer; }
+    main { min-width: 0; display: flex; flex-direction: column; }
+    header { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 24px; border-bottom: 1px solid #292e38; color: #9ca6b5; font-size: 13px; }
+    .pill { border: 1px solid #3d5272; border-radius: 99px; padding: 3px 9px; color: #8dbaff; font-size: 11px; }
+    .editor { width: min(780px, 100%); flex: 1; margin: 0 auto; padding: 54px 38px; }
+    input { width: 100%; border: 0; outline: 0; color: #f4f6fa; background: transparent; font-size: clamp(26px, 4vw, 38px); font-weight: 700; letter-spacing: -.035em; }
+    textarea { width: 100%; min-height: 55vh; margin-top: 24px; resize: vertical; border: 0; outline: 0; color: #cbd2de; background: transparent; font: 15px/1.8 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .notice { width: min(780px, calc(100% - 36px)); margin: 0 auto 18px; padding: 12px 15px; border: 1px solid #354257; border-radius: 9px; color: #aebbd0; background: #191f29; font-size: 12px; }
+    .notice strong { color: #dce9ff; }
+    @media (max-width: 650px) { .app { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid #292e38; padding: 12px; } .brand { padding: 0 7px 8px; } .section { margin: 8px; } .note-list { display: flex; overflow-x: auto; } .note { width: auto; white-space: nowrap; } .add { margin-top: 7px; } header { padding: 10px 14px; } .editor { padding: 34px 22px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand">MindZJ<span>Web</span></div>
+      <div class="section">Sample vault</div>
+      <nav id="notes" class="note-list" aria-label="Notes"></nav>
+      <button id="add" class="add" type="button">＋ New note</button>
+    </aside>
+    <main>
+      <header><span>Pages interactive preview</span><span class="pill">Browser-local demo</span></header>
+      <section class="editor">
+        <input id="title" aria-label="Note title" value="Welcome to MindZJWeb">
+        <textarea id="body" aria-label="Note content" spellcheck="false"></textarea>
+      </section>
+      <div class="notice"><strong>仮プレビュー:</strong> ここで作成したノートは、このブラウザー内にだけ保存されます。Vault の同期や PDF・画像の取り込みには MindZJWeb サーバーが必要です。実アプリの起動方法は <a href="../mindzjweb.md" style="color:#8dbaff">Web guide</a> を参照してください。</div>
+    </main>
+  </div>
+  <script>
+    const starter = [
+      { id: "welcome", title: "Welcome to MindZJWeb", body: "# Welcome to MindZJWeb\n\nA calm workspace for notes, ideas, and game development.\n\n- Keep design decisions close to your project\n- Link notes together with [[wikilinks]]\n- Use the calendar for reports and meeting minutes\n\nThis GitHub Pages preview stores edits only in this browser." },
+      { id: "game", title: "Game design notes", body: "# Game design notes\n\n## Core loop\n\nDescribe the player action, the result, and the reason to repeat.\n\n## Open questions\n\n- What should the first playable build prove?\n- Which assets need review?" },
+      { id: "meeting", title: "Meeting minutes", body: "# Meeting minutes\n\n- Date: 2026-10-01\n- Participants: Team\n\n## Decisions\n\n## Action items\n\n- [ ] Add an owner and due date" }
+    ];
+    const key = "mindzjweb-pages-preview-v1";
+    let notes;
+    try { notes = JSON.parse(localStorage.getItem(key)) || starter; } catch { notes = starter; }
+    let selected = notes[0]?.id;
+    const list = document.querySelector("#notes");
+    const title = document.querySelector("#title");
+    const body = document.querySelector("#body");
+    function save() { localStorage.setItem(key, JSON.stringify(notes)); }
+    function render() {
+      list.replaceChildren();
+      for (const note of notes) {
+        const button = document.createElement("button");
+        button.type = "button"; button.className = `note${note.id === selected ? " active" : ""}`; button.textContent = note.title;
+        button.onclick = () => { sync(); selected = note.id; render(); };
+        list.append(button);
+      }
+      const current = notes.find(note => note.id === selected) || notes[0];
+      if (current) { selected = current.id; title.value = current.title; body.value = current.body; }
+    }
+    function sync() { const current = notes.find(note => note.id === selected); if (current) { current.title = title.value || "Untitled"; current.body = body.value; save(); } }
+    title.addEventListener("input", () => { sync(); render(); });
+    body.addEventListener("input", sync);
+    document.querySelector("#add").onclick = () => { sync(); const note = { id: crypto.randomUUID(), title: "Untitled note", body: "# Untitled note\n\n" }; notes.push(note); selected = note.id; save(); render(); title.focus(); title.select(); };
+    render();
+  </script>
+</body>
+</html>

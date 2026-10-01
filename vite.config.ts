@@ -16,6 +16,9 @@ export default defineConfig(async () => ({
     port: 1430,
     strictPort: false,
     host: host || false,
+    proxy: {
+      "/api": process.env.MINDZJ_API_TARGET || "http://127.0.0.1:3000",
+    },
     hmr: host
       ? { protocol: "ws", host, port: 1431 }
       : undefined,

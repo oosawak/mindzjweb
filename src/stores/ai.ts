@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../backend";
 import { editorStore, type ViewMode } from "./editor";
 import { aiModelSettingsKey, settingsStore, type AiProviderConfig, type AiProviderType, type AiSkill, type AppSettings } from "./settings";
 import { vaultStore, type VaultEntry, type FileContent } from "./vault";

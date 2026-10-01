@@ -11,6 +11,10 @@ rust-version = "1.77.2"
 name = "mindzj_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[[bin]]
+name = "mindzj-server"
+path = "src/server.rs"
+
 [build-dependencies]
 tauri-build = { version = "=2.6.1", features = [] }
 
@@ -30,6 +34,8 @@ serde_json = "=1.0.149"
 
 # Async runtime
 tokio = { version = "=1.52.3", features = ["full"] }
+axum = "=0.8.8"
+tower-http = { version = "=0.6.10", features = ["fs"] }
 
 # File system watching
 notify = "=7.0.0"

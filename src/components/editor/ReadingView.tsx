@@ -48,7 +48,7 @@ import {
 import { attachWheelZoom, attachCtrlClick } from "../../utils/imageInteraction";
 import { parseImageSize, formatImageAlt } from "../../utils/imageSize";
 import { linkifyHtmlText, ensureScheme } from "../../utils/autoLink";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../backend";
 import { t } from "../../i18n";
 import { getReadableMarkerTextColor, resolveMarkerColor } from "./markerColors";
 import {

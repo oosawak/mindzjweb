@@ -9,7 +9,7 @@
  *   `[[#heading]]` references).
  */
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../backend";
 
 // Must match the Rust NoteLink struct shape
 interface NoteLink {

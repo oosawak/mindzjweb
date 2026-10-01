@@ -8,9 +8,9 @@
  *   - `.mindzj` (or any plugin-registered extension) goes into a
  *     plugin view.
  *   - Images open in an in-app preview tab.
- *   - A small set of binary document formats (currently `.doc/.docx`)
- *     open in an in-app placeholder tab with actions.
- *   - Other Office documents, PDFs, archives, A/V files etc. are
+ *   - PDFs, common audio/video files, and glTF models open in-app.
+ *   - `.doc/.docx` open in an in-app placeholder tab with actions.
+ *   - Other Office documents, archives, and unsupported media formats are
  *     delegated to the operating system's default app.
  */
 
@@ -115,14 +115,18 @@ const TEXT_EXTS = new Set([
 ]);
 
 const PREVIEW_EXTS = new Set([
+    "pdf",
     "doc",
     "docx",
+    "mp3", "m4a", "wav", "ogg", "flac", "aac", "opus",
+    "mp4", "m4v", "mov", "avi", "mkv", "webm", "ogv",
+    "glb", "gltf",
 ]);
 
 /**
  * Files we hand off to the OS default app. These either can't render
- * in a WebView2 view at all (Office, PDF, archives) or would render
- * worse than the dedicated native app (A/V files).
+ * in a WebView2 view at all (Office documents, archives) or would
+ * render worse than the dedicated native app (A/V files).
  */
 const EXTERNAL_EXTS = new Set([
     // Microsoft Office
@@ -140,21 +144,7 @@ const EXTERNAL_EXTS = new Set([
     "pages",
     "numbers",
     "key",
-    // PDFs
-    "pdf",
-    // Audio / video
-    "mp3",
-    "m4a",
-    "wav",
-    "ogg",
-    "flac",
-    "aac",
-    "mp4",
-    "m4v",
-    "mov",
-    "avi",
-    "mkv",
-    "webm",
+    // Media without an in-app preview
     "wmv",
     // Archives
     "zip",

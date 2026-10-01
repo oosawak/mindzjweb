@@ -10,7 +10,7 @@ import {
     onMount,
     onCleanup,
 } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
+import { getBackendKind, invoke } from "./backend";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
@@ -335,6 +335,7 @@ function aiPanelModelOptionLabel(config: AiProviderConfig): string {
 }
 
 const App: Component = () => {
+    const isTauriRuntime = getBackendKind() === "tauri";
     // If the window was created via `open_image_in_new_window`, the
     // URL carries `image_viewer=1` plus a vault_path/file_path. In that
     // case we render ONLY the ImageViewer component — no sidebar, no
@@ -1649,6 +1650,7 @@ const App: Component = () => {
         // ── Window state: Rust applies the saved geometry BEFORE the window
         //    is shown (see settings_api::apply_window_state in setup hook),
         //    so the frontend only needs to PERSIST subsequent changes. ──
+        if (isTauriRuntime) {
         const _aw = getCurrentWindow();
 
         // ── Window state: save on move/resize (debounced) ──
@@ -1729,6 +1731,7 @@ const App: Component = () => {
                 await vaultStore.refreshFileTree();
             },
         );
+        }
 
         // Auto-open vault from URL params (for new-window vault opening)
         if (startupVaultPath && startupVaultName) {
@@ -1833,6 +1836,7 @@ const App: Component = () => {
         };
 
         createEffect(() => {
+            if (!isTauriRuntime) return;
             const combo = getHotkey("screenshot", "Alt+G");
             syncShortcut(combo);
         });
@@ -1877,6 +1881,7 @@ const App: Component = () => {
     //    succeeded. If it didn't, the most likely cause is another
     //    application (or OS component) already claiming the key.
     onMount(async () => {
+        if (!isTauriRuntime) return;
         const tryRegister = async (
             combo: string,
             direction: "prev" | "next",
@@ -1933,14 +1938,14 @@ const App: Component = () => {
     createEffect(() => {
         const info = vaultStore.vaultInfo();
         if (info) {
-            document.title = `MindZJ — ${info.name}`;
+            document.title = `${isTauriRuntime ? "MindZJ" : "MindZJWeb"} — ${info.name}`;
             // Record last opened vault
             localStorage.setItem(
                 "mindzj-last-vault",
                 JSON.stringify({ name: info.name, path: info.path }),
             );
         } else {
-            document.title = "MindZJ";
+            document.title = isTauriRuntime ? "MindZJ" : "MindZJWeb";
         }
     });
 

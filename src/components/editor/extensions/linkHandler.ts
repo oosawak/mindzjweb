@@ -14,7 +14,7 @@
 
 import { EditorView, ViewPlugin, keymap } from "@codemirror/view";
 import { Extension, Prec } from "@codemirror/state";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../../backend";
 import {
     autocompletion,
     startCompletion,
