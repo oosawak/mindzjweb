@@ -101,13 +101,11 @@ const TEXT_EXTS = new Set([
     "ps1",
     "bat",
     "cmd",
-    // Web
+    // Web source (HTML pages are handled by the in-app page preview below)
     "css",
     "scss",
     "sass",
     "less",
-    "html",
-    "htm",
     // SQL / misc text
     "sql",
     "graphql",
@@ -115,6 +113,7 @@ const TEXT_EXTS = new Set([
 ]);
 
 const PREVIEW_EXTS = new Set([
+    "html", "htm",
     "pdf",
     "doc",
     "docx",

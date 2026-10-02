@@ -38,7 +38,7 @@ import {
     setFindQuery,
 } from "../../stores/findState";
 import katex from "katex";
-import { resolveImageAssetUrl } from "../../utils/vaultPaths";
+import { resolveImageAssetUrl, toVaultAssetUrl } from "../../utils/vaultPaths";
 import { navigateWikiTarget } from "../../utils/wikiNavigation";
 import { showImageContextMenu } from "./extensions/livePreview";
 import {
@@ -507,8 +507,28 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
             paraLines.push(lines[i]);
             i++;
         }
-        const paraContent = renderInline(paraLines.join("\n"), ctx);
-        html.push(`<p data-line="${paraStart}">${paraContent}</p>`);
+        // Render standalone YouTube links as players even when Markdown
+        // images/text share the same paragraph (no blank line between them).
+        let textLines: string[] = [];
+        let textStartLine = paraStart;
+        const flushTextLines = () => {
+            if (!textLines.length) return;
+            html.push(`<p data-line="${textStartLine}">${renderInline(textLines.join("\n"), ctx)}</p>`);
+            textLines = [];
+        };
+        for (let lineOffset = 0; lineOffset < paraLines.length; lineOffset++) {
+            const youtubeId = getYouTubeVideoId(paraLines[lineOffset].trim());
+            if (!youtubeId) {
+                if (!textLines.length) textStartLine = paraStart + lineOffset;
+                textLines.push(paraLines[lineOffset]);
+                continue;
+            }
+            flushTextLines();
+            html.push(
+                `<div class="mz-rv-youtube" data-line="${paraStart + lineOffset}"><iframe src="https://www.youtube-nocookie.com/embed/${youtubeId}" title="YouTube video player" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>`,
+            );
+        }
+        flushTextLines();
     }
 
     // Add footnote section if any
@@ -528,12 +548,43 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
     return html.join("\n");
 }
 
+/** Accept common YouTube share URLs, while only allowing a validated 11-char video ID into the iframe URL. */
+function getYouTubeVideoId(raw: string): string | null {
+    let url: URL;
+    try {
+        url = new URL(raw);
+    } catch {
+        return null;
+    }
+    if (url.protocol !== "https:") return null;
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    let id: string | null = null;
+    if (host === "youtu.be") {
+        id = url.pathname.split("/").filter(Boolean)[0] ?? null;
+    } else if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+        const parts = url.pathname.split("/").filter(Boolean);
+        if (url.pathname === "/watch") id = url.searchParams.get("v");
+        else if (["embed", "shorts", "live"].includes(parts[0] ?? "")) id = parts[1] ?? null;
+    }
+    return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+}
+
 // ---------------------------------------------------------------------------
 // Inline rendering
 // ---------------------------------------------------------------------------
 
 function renderInline(text: string, ctx: RenderContext): string {
     let result = escapeHtml(text);
+
+    // Embed local HTML pages using Obsidian-style syntax: ![[path/to/page.html]].
+    // These are deliberately sandboxed because Vault resources can contain scripts.
+    result = result.replace(/!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, rawPath, label) => {
+        const pagePath = unescapeHtml(rawPath).trim().replace(/^\//, "");
+        if (!/\.html?$/i.test(pagePath)) return _;
+        const src = toVaultAssetUrl(ctx.vaultRoot, pagePath);
+        const title = escapeAttr((label || pagePath.split("/").pop() || "HTML page").trim());
+        return `<div class="mz-rv-html-embed"><iframe src="${escapeAttr(src)}" title="${title}" loading="lazy" sandbox="allow-scripts allow-forms allow-popups allow-downloads" referrerpolicy="no-referrer"></iframe></div>`;
+    });
 
     // Images: ![alt](src) — with optional `|width` / `|widthxheight`
     // suffix in the alt text for persisted display size (see

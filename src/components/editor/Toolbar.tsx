@@ -8,12 +8,13 @@ import {
   onMount,
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
-import { Highlighter } from "lucide-solid";
+import { Highlighter, Image as ImageIcon } from "lucide-solid";
 import { t } from "../../i18n";
 import { editorStore } from "../../stores/editor";
 import { settingsStore } from "../../stores/settings";
 import { vaultStore } from "../../stores/vault";
 import { getMarkerPalette } from "./markerColors";
+import { ImagePicker } from "./ImagePicker";
 
 interface ToolbarButton {
   command: string;
@@ -70,6 +71,7 @@ const TOOLBAR_ITEMS: ToolbarButton[] = [
     separator: true,
   },
   { icon: "🔗", label: "toolbar.link", command: "link", shortcut: "Ctrl+K" },
+  { icon: ImageIcon, label: "toolbar.imagePicker", command: "image-picker", separator: true },
   { icon: "</>", label: "toolbar.code", command: "code", shortcut: "Ctrl+Shift+E" },
   { icon: "{ }", label: "toolbar.codeBlock", command: "codeblock", separator: true },
   { icon: "▦", label: "toolbar.table", command: "table" },
@@ -85,6 +87,7 @@ export const Toolbar: Component = () => {
   const [showHeadingMenu, setShowHeadingMenu] = createSignal(false);
   const [showOverflowMenu, setShowOverflowMenu] = createSignal(false);
   const [showMarkerMenu, setShowMarkerMenu] = createSignal(false);
+  const [showImagePicker, setShowImagePicker] = createSignal(false);
   const [overflowIndex, setOverflowIndex] = createSignal<number>(-1);
   const [headingMenuPos, setHeadingMenuPos] = createSignal({ x: 0, y: 0 });
   const [markerMenuPos, setMarkerMenuPos] = createSignal({ x: 0, y: 0 });
@@ -113,6 +116,10 @@ export const Toolbar: Component = () => {
   };
 
   const dispatchCommand = (item: ToolbarButton, event?: MouseEvent) => {
+    if (item.command === "image-picker") {
+      setShowImagePicker(true);
+      return;
+    }
     if (item.command === "ai-panel") {
       document.dispatchEvent(new CustomEvent("mindzj:toggle-ai-panel"));
       return;
@@ -427,6 +434,22 @@ export const Toolbar: Component = () => {
             )}
           </For>
         </div>
+      </Show>
+
+      <Show when={showImagePicker()}>
+        <ImagePicker
+          onClose={() => setShowImagePicker(false)}
+          onSelect={(path) => {
+            const fileName = path.split("/").pop() ?? path;
+            document.dispatchEvent(new CustomEvent("mindzj:insert-text", {
+              // Leading slash marks this as Vault-root-relative. Picker paths
+              // already come from the Vault tree; treating them as note-relative
+              // duplicated parent folders for notes outside the Vault root.
+              detail: { text: `![${fileName}](/${path})` },
+            }));
+            setShowImagePicker(false);
+          }}
+        />
       </Show>
 
       <Show when={showMarkerMenu()}>

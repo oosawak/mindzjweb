@@ -1,0 +1,81 @@
+{
+  "notes": [
+    {
+      "path": "a/a.md",
+      "title": "a"
+    },
+    {
+      "path": "a/b.md",
+      "title": "b"
+    },
+    {
+      "path": "test/diary/2026/10/2026-10-01_minutes_ｘｘｘ_ｘｘｘ.md",
+      "title": "ｘｘｘ"
+    },
+    {
+      "path": "test/diary/2026/10/2026-10-01_minutes_適当なゲームの打ち合わせ_大澤公志郎.md",
+      "title": "適当なゲームの打ち合わせ"
+    },
+    {
+      "path": "test/diary/2026/10/2026-10-01_report_ｘｘｘゲームの作業_大澤公志郎.md",
+      "title": "ｘｘｘゲームの作業"
+    },
+    {
+      "path": "test/diary/2026/10/2026-10-01_report_適当なゲームの打ち合わせ_大澤公志郎.md",
+      "title": "適当なゲームの打ち合わせ"
+    },
+    {
+      "path": "test/ゲーム制作/ARISA-Quest/仕様書/New note.md",
+      "title": "New note"
+    },
+    {
+      "path": "test/ゲーム制作/REISRAND/３Dアセット制作チュートリアル.md",
+      "title": "３Dアセット制作チュートリアル"
+    },
+    {
+      "path": "test/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.md",
+      "title": "REISRAND 開発参加ガイド"
+    },
+    {
+      "path": "test/ゲーム制作/REISRAND/ゲームの概要.md",
+      "title": "ゲームの概要"
+    },
+    {
+      "path": "test/ドキュメント/教科書/Unity入門.md",
+      "title": "Unity 超入門ガイド"
+    },
+    {
+      "path": "test/ドキュメント/教科書/UnrealEngine入門.md",
+      "title": "Unreal Engine 超入門ガイド"
+    },
+    {
+      "path": "大澤公志郎/New note.md",
+      "title": "New note"
+    }
+  ],
+  "files": [
+    "a/a.md",
+    "a/b.md",
+    "test/diary/2026/10/2026-10-01_minutes_ｘｘｘ_ｘｘｘ.md",
+    "test/diary/2026/10/2026-10-01_minutes_適当なゲームの打ち合わせ_大澤公志郎.md",
+    "test/diary/2026/10/2026-10-01_report_ｘｘｘゲームの作業_大澤公志郎.md",
+    "test/diary/2026/10/2026-10-01_report_適当なゲームの打ち合わせ_大澤公志郎.md",
+    "test/ゲーム制作/ARISA-Quest/リソース/３ｄ/Untitled.glb",
+    "test/ゲーム制作/ARISA-Quest/リソース/音楽/曲 1.wav",
+    "test/ゲーム制作/ARISA-Quest/リソース/画像/Image_1.jpg",
+    "test/ゲーム制作/ARISA-Quest/仕様書/arisa-character-design.png",
+    "test/ゲーム制作/ARISA-Quest/仕様書/New note.md",
+    "test/ゲーム制作/REISRAND/３Dアセット制作チュートリアル.md",
+    "test/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.md",
+    "test/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.pdf",
+    "test/ゲーム制作/REISRAND/ゲームの概要.md",
+    "test/ゲーム制作/REISRAND/リソース/スクリーンショット/3Dソフト基本操作＆モデリング入門.png",
+    "test/ゲーム制作/Webゲーム/donkey_kong_arcade.html",
+    "test/ゲーム制作/大切な貴方へ花束を/「大切な貴方へ花束を」ルールブック.pdf",
+    "test/ドキュメント/教科書/Blender_5.0_First_Steps.pdf",
+    "test/ドキュメント/教科書/Unity入門.md",
+    "test/ドキュメント/教科書/UnrealEngine入門.md",
+    "test/ドキュメント/教科書/ゲーム開発エディタとキャラ移動ガイド.png",
+    "大澤公志郎/New note.md"
+  ]
+}

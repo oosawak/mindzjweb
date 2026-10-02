@@ -238,10 +238,10 @@ const DEFAULT_SETTINGS: AppSettings = {
     editor_readable_line_length: true,
     auto_save_interval_ms: 2000,
     default_view_mode: "LivePreview",
-    // Default UI language is English. Users can switch language from the
+    // Default UI language is Japanese. Users can switch language from the
     // welcome screen (saved to localStorage under "mindzj-pending-locale")
     // or from Settings → Appearance once a vault is open.
-    locale: "en",
+    locale: "ja",
     accent_color: "#1aad3f",
     heading_color: null,
     link_color: null,

@@ -14,7 +14,7 @@ export const FilePreview: Component<{
 }> = (props) => {
     const fileName = createMemo(() => displayName(props.filePath));
     const extension = createMemo(() => getFileExtension(props.filePath).toUpperCase() || "FILE");
-    const previewableMedia = createMemo(() => ["PDF", "MP3", "M4A", "WAV", "OGG", "FLAC", "AAC", "OPUS", "MP4", "M4V", "MOV", "AVI", "MKV", "WEBM", "OGV", "GLB", "GLTF"].includes(extension()));
+    const previewableMedia = createMemo(() => ["HTML", "HTM", "PDF", "MP3", "M4A", "WAV", "OGG", "FLAC", "AAC", "OPUS", "MP4", "M4V", "MOV", "AVI", "MKV", "WEBM", "OGV", "GLB", "GLTF"].includes(extension()));
     const isAudio = createMemo(() => ["MP3", "M4A", "WAV", "OGG", "FLAC", "AAC", "OPUS"].includes(extension()));
     const isVideo = createMemo(() => ["MP4", "M4V", "MOV", "AVI", "MKV", "WEBM", "OGV"].includes(extension()));
     const isModel = createMemo(() => ["GLB", "GLTF"].includes(extension()));
@@ -154,6 +154,15 @@ export const FilePreview: Component<{
                         </div>
                         </div>}
                     >
+                        <Show when={extension() === "HTML" || extension() === "HTM"}>
+                            <iframe
+                                src={assetUrl()}
+                                title={fileName()}
+                                sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+                                referrerPolicy="no-referrer"
+                                style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
+                            />
+                        </Show>
                         <Show when={extension() === "PDF"}>
                             <iframe
                                 src={assetUrl()}

@@ -76,6 +76,8 @@ type SettingsCategory =
 
 interface SettingsModalProps {
     onClose: () => void;
+    sidebarWidth: number;
+    onSidebarWidthChange: (width: number) => void;
 }
 
 const CATEGORIES: { id: SettingsCategory; key: string; icon: string }[] = [
@@ -1154,6 +1156,22 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
 
                         <SettingSection title={t("settings.themeSection")}>
                             <SkinPickerPanel />
+                        </SettingSection>
+
+                        <SettingSection title={t("settings.sidebarLayout")}>
+                            <SettingInput
+                                label={t("settings.sidebarWidth")}
+                                description={t("settings.sidebarWidthDescription")}
+                                value={props.sidebarWidth}
+                                type="number"
+                                min={160}
+                                max={720}
+                                commitOnBlur
+                                onChange={(value) => {
+                                    const width = Number.parseInt(value, 10);
+                                    if (Number.isFinite(width)) props.onSidebarWidthChange(width);
+                                }}
+                            />
                         </SettingSection>
 
                         {/* CSS Snippets —  user stylesheet manager */}

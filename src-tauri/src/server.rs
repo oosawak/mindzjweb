@@ -1,5 +1,5 @@
 use axum::{
-    extract::{DefaultBodyLimit, Path, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::{header, HeaderValue, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -8,7 +8,7 @@ use axum::{
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use mindzj_lib::kernel::{
     error::KernelError,
-    types::{AppSettings, SearchQuery, WorkspaceState},
+    types::{AppSettings, HotkeyBinding, SearchQuery, WorkspaceState},
     AppState,
 };
 use serde_json::{json, Value};
@@ -76,6 +76,25 @@ fn optional_string(args: &Value, key: &str) -> Option<String> {
     args.get(key).and_then(Value::as_str).map(str::to_owned)
 }
 
+fn plugin_dir(vault_root: &std::path::Path, plugin_id: &str) -> Option<PathBuf> {
+    if plugin_id.is_empty() || plugin_id.contains('/') || plugin_id.contains('\\') {
+        return None;
+    }
+    let plugins_dir = vault_root.join(".mindzj").join("plugins");
+    let exact = plugins_dir.join(plugin_id);
+    if exact.is_dir() { return Some(exact); }
+    for entry in std::fs::read_dir(plugins_dir).ok()?.flatten() {
+        if !entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false) { continue; }
+        let manifest_path = entry.path().join("manifest.json");
+        let Ok(bytes) = std::fs::read(manifest_path) else { continue; };
+        let Ok(manifest) = serde_json::from_slice::<Value>(&bytes) else { continue; };
+        if manifest.get("id").and_then(Value::as_str) == Some(plugin_id) {
+            return Some(entry.path());
+        }
+    }
+    None
+}
+
 fn context(state: &ServerState) -> Result<Arc<mindzj_lib::kernel::VaultContext>, ApiError> {
     state
         .kernel
@@ -89,6 +108,36 @@ fn context(state: &ServerState) -> Result<Arc<mindzj_lib::kernel::VaultContext>,
 
 async fn health() -> Json<Value> {
     Json(json!({ "status": "ok" }))
+}
+
+async fn list_vaults(Query(query): Query<std::collections::HashMap<String, String>>) -> Result<Json<Value>, ApiError> {
+    let root = PathBuf::from(query.get("root").filter(|s| !s.trim().is_empty()).map(String::as_str).unwrap_or("Vaults"));
+    if root == PathBuf::from("Vaults") {
+        std::fs::create_dir_all(&root).map_err(|e| ApiError::bad_request(e.to_string()))?;
+    }
+    let root = root.canonicalize().map_err(|e| ApiError::bad_request(format!("Cannot open vaults folder: {e}")))?;
+    if !root.is_dir() {
+        return Err(ApiError::bad_request("Selected path is not a folder"));
+    }
+    let mut vaults = std::fs::read_dir(&root)
+        .map_err(|e| ApiError::bad_request(e.to_string()))?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let file_type = entry.file_type().ok()?;
+            if !file_type.is_dir() || file_type.is_symlink() {
+                return None;
+            }
+            let path = entry.path();
+            let name = entry.file_name().into_string().ok()?;
+            Some(json!({ "name": name, "path": path.to_string_lossy() }))
+        })
+        .collect::<Vec<_>>();
+    vaults.sort_by(|a, b| {
+        a.get("name").and_then(Value::as_str).unwrap_or("")
+            .to_lowercase()
+            .cmp(&b.get("name").and_then(Value::as_str).unwrap_or("").to_lowercase())
+    });
+    Ok(Json(Value::Array(vaults)))
 }
 
 async fn asset(
@@ -107,6 +156,7 @@ async fn asset(
         .to_ascii_lowercase()
         .as_str()
     {
+        "html" | "htm" => "text/html; charset=utf-8",
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
         "gif" => "image/gif",
@@ -130,6 +180,24 @@ async fn asset(
     };
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+    if matches!(
+        PathBuf::from(&relative_path)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .as_str(),
+        "html" | "htm"
+    ) {
+        // Keep vault HTML usable as a resource page while isolating its script
+        // origin from the MindZJ app and its API, including when opened directly.
+        headers.insert(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static(
+                "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+            ),
+        );
+    }
     headers.insert(
         header::CACHE_CONTROL,
         HeaderValue::from_static("private, max-age=300"),
@@ -343,6 +411,59 @@ async fn command(
             ctx.save_settings().map_err(ApiError::from_kernel)?;
             Value::Null
         }
+        "get_hotkeys" => serde_json::to_value(
+            context(&state)?.load_hotkeys().map_err(ApiError::from_kernel)?,
+        ).map_err(|e| ApiError::bad_request(e.to_string()))?,
+        "save_hotkeys" => {
+            let bindings: Vec<HotkeyBinding> = serde_json::from_value(
+                args.get("bindings").cloned().ok_or_else(|| ApiError::bad_request("Missing bindings"))?,
+            ).map_err(|e| ApiError::bad_request(e.to_string()))?;
+            context(&state)?.save_hotkeys(&bindings).map_err(ApiError::from_kernel)?;
+            Value::Null
+        }
+        "list_plugins" => {
+            let ctx = context(&state)?;
+            let root = ctx.vault.root();
+            let plugins_dir = root.join(".mindzj").join("plugins");
+            let enabled_path = root.join(".mindzj").join("plugins.json");
+            let enabled: Vec<String> = std::fs::read_to_string(enabled_path)
+                .ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
+            let mut plugins = Vec::new();
+            if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+                for entry in entries.flatten() {
+                    let dir = entry.path();
+                    if !dir.is_dir() { continue; }
+                    let manifest_path = dir.join("manifest.json");
+                    let Ok(bytes) = std::fs::read(manifest_path) else { continue; };
+                    let Ok(manifest) = serde_json::from_slice::<Value>(&bytes) else { continue; };
+                    let Some(id) = manifest.get("id").and_then(Value::as_str) else { continue; };
+                    plugins.push(json!({
+                        "manifest": manifest,
+                        "enabled": enabled.iter().any(|entry| entry == id),
+                        "has_styles": dir.join("styles.css").is_file(),
+                        "dir_path": dir.to_string_lossy(),
+                        "is_core": false
+                    }));
+                }
+            }
+            plugins.sort_by(|a: &Value, b: &Value| {
+                a.pointer("/manifest/name").and_then(Value::as_str).unwrap_or("")
+                    .cmp(b.pointer("/manifest/name").and_then(Value::as_str).unwrap_or(""))
+            });
+            Value::Array(plugins)
+        }
+        "read_plugin_main" | "read_plugin_styles" => {
+            let id = string_arg(&args, "pluginId")?;
+            let ctx = context(&state)?;
+            let root = ctx.vault.root();
+            let dir = plugin_dir(root, &id).ok_or_else(|| ApiError::bad_request("Plugin directory not found"))?;
+            let file = if name == "read_plugin_main" { "main.js" } else { "styles.css" };
+            match std::fs::read_to_string(dir.join(file)) {
+                Ok(contents) => json!(contents),
+                Err(error) if name == "read_plugin_styles" && error.kind() == std::io::ErrorKind::NotFound => json!(""),
+                Err(error) => return Err(ApiError::bad_request(format!("Failed to read plugin {file}: {error}"))),
+            }
+        }
         "load_workspace" => serde_json::to_value(
             context(&state)?
                 .load_workspace()
@@ -389,6 +510,7 @@ async fn main() -> anyhow::Result<()> {
     let state = ServerState { kernel };
     let api = Router::new()
         .route("/health", get(health))
+        .route("/vaults", get(list_vaults))
         .route("/assets/{*relative_path}", get(asset))
         .route("/commands/{command}", post(command))
         .with_state(state);

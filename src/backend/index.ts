@@ -17,6 +17,12 @@ class TauriBackend implements MindZjBackend {
 
 class WebBackend implements MindZjBackend {
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+    if (command === "list_web_vaults") {
+      const root = typeof args?.root === "string" ? args.root : "Vaults";
+      const response = await fetch(`/api/vaults?root=${encodeURIComponent(root)}`);
+      if (!response.ok) throw new Error(`Backend request failed (${response.status})`);
+      return response.json() as Promise<T>;
+    }
     const response = await fetch(`/api/commands/${encodeURIComponent(command)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

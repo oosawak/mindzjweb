@@ -33,7 +33,7 @@ import {
     createItalicRegex,
 } from "../../../utils/markdownInline";
 import { invoke } from "../../../backend";
-import { resolveImageAssetUrl } from "../../../utils/vaultPaths";
+import { resolveImageAssetUrl, toVaultAssetUrl } from "../../../utils/vaultPaths";
 import {
     attachWheelZoom,
     attachCtrlClick,
@@ -456,6 +456,28 @@ class ImageWidget extends WidgetType {
         // in place with its pre-zoom size, and CM6 would only
         // refresh on the next unrelated edit.
         return this.src === other.src && this.alt === other.alt;
+    }
+}
+
+/** Sandboxed inline preview for an embedded local HTML resource. */
+class HtmlEmbedWidget extends WidgetType {
+    constructor(private path: string, private vaultRoot: string) { super(); }
+
+    toDOM(): HTMLElement {
+        const wrapper = document.createElement("div");
+        wrapper.className = "mz-lp-html-embed";
+        const iframe = document.createElement("iframe");
+        iframe.src = toVaultAssetUrl(this.vaultRoot, this.path.replace(/^\//, ""));
+        iframe.title = this.path.split("/").pop() || "HTML page";
+        iframe.loading = "lazy";
+        iframe.referrerPolicy = "no-referrer";
+        iframe.setAttribute("sandbox", "allow-scripts allow-forms allow-popups allow-downloads");
+        wrapper.appendChild(iframe);
+        return wrapper;
+    }
+
+    eq(other: HtmlEmbedWidget): boolean {
+        return this.path === other.path && this.vaultRoot === other.vaultRoot;
     }
 }
 
@@ -1845,6 +1867,24 @@ function buildDecorationsImpl(
                 if (!isCurrentLine) {
                     decorations.push(hideMarker.range(start, end));
                 }
+            }
+        }
+
+        // Embedded HTML pages: ![[path/to/page.html]]. These are rendered
+        // in an isolated iframe in live preview as well as reading mode.
+        {
+            const htmlEmbedRegex = /!\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/gi;
+            let htmlMatch;
+            while ((htmlMatch = htmlEmbedRegex.exec(text)) !== null) {
+                const path = htmlMatch[1].trim();
+                if (!/\.html?$/i.test(path)) continue;
+                const start = line.from + htmlMatch.index;
+                const end = start + htmlMatch[0].length;
+                decorations.push(Decoration.widget({
+                    widget: new HtmlEmbedWidget(path, vaultRoot),
+                    side: 1,
+                }).range(end));
+                if (!isCurrentLine) decorations.push(hideMarker.range(start, end));
             }
         }
 

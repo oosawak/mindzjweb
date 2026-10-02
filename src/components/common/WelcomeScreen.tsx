@@ -23,6 +23,9 @@ export const WelcomeScreen: Component = () => {
   const [webVaultAction, setWebVaultAction] = createSignal<"open" | "create" | null>(null);
   const [webVaultPath, setWebVaultPath] = createSignal("");
   const [webVaultName, setWebVaultName] = createSignal("");
+  const [serverVaultRoot, setServerVaultRoot] = createSignal("Vaults");
+  const [serverVaultRootDraft, setServerVaultRootDraft] = createSignal("Vaults");
+  const [editingServerVaultRoot, setEditingServerVaultRoot] = createSignal(false);
   const [contextMenu, setContextMenu] = createSignal<{
     show: boolean;
     x: number;
@@ -31,17 +34,38 @@ export const WelcomeScreen: Component = () => {
   }>({ show: false, x: 0, y: 0, items: [] });
 
   onMount(() => {
-    try {
-      const saved = localStorage.getItem("mindzj-vault-list");
-      if (saved) setVaults(JSON.parse(saved));
-    } catch {
-      setVaults([]);
+    if (getBackendKind() === "web") {
+      void loadServerVaults("Vaults");
+    } else {
+      try {
+        const saved = localStorage.getItem("mindzj-vault-list");
+        if (saved) setVaults(JSON.parse(saved));
+      } catch {
+        setVaults([]);
+      }
     }
   });
 
+  const loadServerVaults = async (root: string) => {
+    setIsOpening(true);
+    setErrorMsg(null);
+    try {
+      const available = await invoke<VaultRecord[]>("list_web_vaults", { root });
+      setServerVaultRoot(root);
+      setVaults(available.map((vault) => ({ ...vault, lastOpened: 0 })));
+      setEditingServerVaultRoot(false);
+    } catch (error: any) {
+      setErrorMsg(error?.message || t("welcome.serverVaultFolderError"));
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
   const saveVaultList = (list: VaultRecord[]) => {
     setVaults(list);
-    localStorage.setItem("mindzj-vault-list", JSON.stringify(list));
+    if (getBackendKind() !== "web") {
+      localStorage.setItem("mindzj-vault-list", JSON.stringify(list));
+    }
   };
 
   const clearLastVaultIfRemoved = (path: string) => {
@@ -151,7 +175,7 @@ export const WelcomeScreen: Component = () => {
     const action = webVaultAction();
     const nameInput = webVaultName().trim();
     const path = action === "create"
-      ? `../mindzjweb/${nameInput}`
+      ? `${serverVaultRoot().replace(/[/\\]+$/, "")}/${nameInput}`
       : webVaultPath().trim().replace(/[/\\]+$/, "");
     if (action === "create" && (!nameInput || /[/\\]/.test(nameInput) || nameInput === "." || nameInput === "..")) {
       setErrorMsg(t("welcome.webInvalidVaultName"));
@@ -437,9 +461,20 @@ export const WelcomeScreen: Component = () => {
             "margin-bottom": "4px",
           }}
         >
-          {getBackendKind() === "web"
-            ? t("welcome.webTagline")
-            : t("welcome.tagline")}
+          {getBackendKind() === "web" ? (
+            <>
+              {t("welcome.webTaglinePrefix")}
+              <a
+                href="https://github.com/oosawak/mindzj"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "var(--mz-accent)", "text-decoration": "none" }}
+              >
+                MindZJ
+              </a>
+              {t("welcome.webTaglineSuffix")}
+            </>
+          ) : t("welcome.tagline")}
         </div>
 
         <div
@@ -464,6 +499,48 @@ export const WelcomeScreen: Component = () => {
             width: "260px",
           }}
         >
+          <Show when={getBackendKind() === "web"}>
+            <button
+              onClick={() => {
+                setServerVaultRootDraft(serverVaultRoot());
+                setEditingServerVaultRoot((value) => !value);
+                setErrorMsg(null);
+              }}
+              disabled={isOpening()}
+              style={secondaryButtonStyle}
+            >
+              {t("welcome.selectVaultsServer")}
+            </button>
+            <Show when={editingServerVaultRoot()}>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const root = serverVaultRootDraft().trim();
+                  if (root) void loadServerVaults(root);
+                }}
+                style={{ display: "flex", "flex-direction": "column", gap: "8px" }}
+              >
+                <input
+                  value={serverVaultRootDraft()}
+                  onInput={(event) => setServerVaultRootDraft(event.currentTarget.value)}
+                  placeholder="Vaults"
+                  aria-label={t("welcome.serverVaultFolderPath")}
+                  style={{
+                    padding: "10px 12px",
+                    background: "var(--mz-bg-primary)",
+                    color: "var(--mz-text-primary)",
+                    border: "1px solid var(--mz-border-strong)",
+                    "border-radius": "var(--mz-radius-md)",
+                    "font-size": "var(--mz-font-size-sm)",
+                    "font-family": "var(--mz-font-sans)",
+                  }}
+                />
+                <button type="submit" disabled={isOpening() || !serverVaultRootDraft().trim()} style={primaryButtonStyle(isOpening() || !serverVaultRootDraft().trim())}>
+                  {t("welcome.loadVaultsFromFolder")}
+                </button>
+              </form>
+            </Show>
+          </Show>
           <button
             onClick={() => {
               if (getBackendKind() === "web") {
@@ -504,15 +581,10 @@ export const WelcomeScreen: Component = () => {
             {getBackendKind() === "web" ? t("welcome.webCreateVault") : t("welcome.createNewVault")}
           </button>
 
+          <Show when={getBackendKind() !== "web"}>
           <button
             onClick={() => {
-              if (getBackendKind() === "web") {
-                setWebVaultAction("open");
-                setWebVaultPath("");
-                setErrorMsg(null);
-              } else {
-                void handleOpenLocalVault();
-              }
+              void handleOpenLocalVault();
             }}
             disabled={isOpening()}
             style={secondaryButtonStyle}
@@ -540,12 +612,9 @@ export const WelcomeScreen: Component = () => {
                 stroke-linecap="round"
               />
             </svg>
-            {getBackendKind() === "web"
-              ? t("welcome.webOpenVault")
-              : isOpening()
-                ? t("welcome.opening")
-                : t("welcome.openLocalVault")}
+            {isOpening() ? t("welcome.opening") : t("welcome.openLocalVault")}
           </button>
+          </Show>
         </div>
 
         <Show when={getBackendKind() === "web" && webVaultAction()}>
@@ -582,7 +651,7 @@ export const WelcomeScreen: Component = () => {
                   ? setWebVaultName(event.currentTarget.value)
                   : setWebVaultPath(event.currentTarget.value)
               }
-              placeholder={webVaultAction() === "create" ? t("welcome.webVaultNamePlaceholder") : "../mindzjweb/Notes"}
+              placeholder={webVaultAction() === "create" ? t("welcome.webVaultNamePlaceholder") : "Vaults/Notes"}
               autocomplete="off"
               spellcheck={false}
               style={{

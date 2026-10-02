@@ -396,7 +396,23 @@ const App: Component = () => {
     const [showVaultMenu, setShowVaultMenu] = createSignal(false);
     const [sortMode, setSortMode] = createSignal<SortMode>("custom");
     const [sortOrder, setSortOrder] = createSignal<SortOrder>("asc");
-    const [sidebarWidth, setSidebarWidth] = createSignal(260);
+    const [sidebarWidth, setSidebarWidthState] = createSignal((() => {
+        try {
+            const saved = Number(localStorage.getItem("mindzj-sidebar-width"));
+            return Number.isFinite(saved) && saved >= 160 && saved <= 720 ? saved : 260;
+        } catch {
+            return 260;
+        }
+    })());
+    const setSidebarWidth = (width: number) => {
+        const clamped = Math.max(160, Math.min(720, Math.round(width)));
+        setSidebarWidthState(clamped);
+        try {
+            localStorage.setItem("mindzj-sidebar-width", String(clamped));
+        } catch {
+            // Keep the current session usable when browser storage is disabled.
+        }
+    };
     const [primaryPanePath, setPrimaryPanePath] = createSignal<string | null>(
         null,
     );
@@ -444,6 +460,7 @@ const App: Component = () => {
     const hasRestorableVault = (() => {
         if (startupParams.get("vault_path") && startupParams.get("vault_name"))
             return true;
+        if (getBackendKind() === "web") return false;
         try {
             return !!localStorage.getItem("mindzj-last-vault");
         } catch {
@@ -933,7 +950,6 @@ const App: Component = () => {
             split_ratio: splitRatio(),
             sidebar_tab: sidebarTab(),
             sidebar_collapsed: sidebarCollapsed(),
-            sidebar_width: sidebarWidth(),
             sidebar_tab_order: sidebarTabs().map((tab) => tab.id),
             file_scroll_positions: editorStore.fileScrollPositions(),
             file_top_lines: editorStore.fileTopLines(),
@@ -1330,7 +1346,7 @@ const App: Component = () => {
         // `direction`.
         if (direction === "left" || direction === "up") {
             commitPaneLayout(path, previousActivePath, "primary", direction);
-        } else {
+        } else if (getBackendKind() !== "web") {
             commitPaneLayout(previousActivePath, path, "secondary", direction);
         }
     }
@@ -1387,15 +1403,52 @@ const App: Component = () => {
         resetFolderVisibilityState();
     }
 
-    /** Trigger screenshot capture (called by Alt+F) */
+    /** Trigger screenshot capture (Alt+G or the sidebar camera button). */
     async function startScreenshot() {
         if (screenshotLoading() || screenshotData()) return;
         setScreenshotLoading(true);
         try {
-            const base64 = await invoke<string>("capture_screen");
+            let base64: string;
+            if (isTauriRuntime) {
+                base64 = await invoke<string>("capture_screen");
+            } else {
+                const getDisplayMedia = navigator.mediaDevices?.getDisplayMedia;
+                if (!getDisplayMedia) {
+                    throw new Error("SCREEN_CAPTURE_UNAVAILABLE");
+                }
+                const stream = await getDisplayMedia.call(
+                    navigator.mediaDevices,
+                    { video: true, audio: false },
+                );
+                try {
+                    const video = document.createElement("video");
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.srcObject = stream;
+                    await new Promise<void>((resolve, reject) => {
+                        video.onloadedmetadata = () => resolve();
+                        video.onerror = () => reject(new Error("SCREEN_CAPTURE_FAILED"));
+                    });
+                    await video.play();
+                    const canvas = document.createElement("canvas");
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const context = canvas.getContext("2d");
+                    if (!context || !canvas.width || !canvas.height) {
+                        throw new Error("SCREEN_CAPTURE_FAILED");
+                    }
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    base64 = canvas.toDataURL("image/png").split(",", 2)[1];
+                } finally {
+                    for (const track of stream.getTracks()) track.stop();
+                }
+            }
             setScreenshotData(base64);
         } catch (err) {
             console.error("[Screenshot] capture_screen failed:", err);
+            if ((err as DOMException)?.name !== "AbortError") {
+                showShortcutToast(t("screenshot.captureUnavailable"));
+            }
         } finally {
             setScreenshotLoading(false);
         }
@@ -1404,85 +1457,17 @@ const App: Component = () => {
     /** Save annotated screenshot to vault and insert markdown link */
     async function handleScreenshotSave(base64Png: string) {
         try {
-            // Copy the screenshot to the system clipboard instead
-            // of writing it directly into `.mindzj/images/` + inserting
-            // markdown. The user wanted a two-step flow: snip → appear
-            // on clipboard → paste with Ctrl+V into whichever note they
-            // choose, at whichever position they want.
-            //
-            // The existing CM6 `paste` dom-event handler
-            // (`src/components/editor/Editor.tsx`) already intercepts
-            // image items from `clipboardData.items`, generates a
-            // filename like `Pasted image YYYYMMDDHHmmss.png`, saves
-            // to the attachment folder, and inserts the markdown
-            // reference. So by putting the PNG on the clipboard here,
-            // pressing Ctrl+V in an editor re-uses that whole
-            // infrastructure for free.
-            //
-            // We use the browser Clipboard API (`navigator.clipboard
-            // .write`) with a `ClipboardItem` carrying the PNG blob.
-            // Tauri's custom protocol origin counts as a secure
-            // context in WebView2, so this API is available.
-            //
-            // (Tauri's own `writeImage` from `plugin-clipboard-manager`
-            // expects a `Uint8Array` of RGBA pixels, not a PNG byte
-            // stream, so we'd have to decode the PNG first — lots of
-            // extra code. The Blob path is simpler and works.)
+            const timestamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+            const filename = `screenshot_${timestamp}.png`;
+            const folder = settingsStore.settings().attachment_folder || ".mindzj/images";
+            const relativePath = `${folder}/${filename}`;
+            await invoke("write_binary_file", { relativePath, base64Data: base64Png });
+            await vaultStore.refreshFileTree();
 
-            // Decode base64 → Uint8Array → Blob(image/png)
-            const binary = atob(base64Png);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
-            }
-            const blob = new Blob([bytes], { type: "image/png" });
-
-            // Write to the system clipboard. The `ClipboardItem`
-            // MIME → Blob map is how `navigator.clipboard.write`
-            // signals "this item is an image/png". Any paste
-            // target — including MindZJ's own editor paste handler,
-            // which reads `clipboardData.items` — will see this as
-            // an image.
-            try {
-                await navigator.clipboard.write([
-                    new ClipboardItem({ "image/png": blob }),
-                ]);
-            } catch (clipErr) {
-                // If Clipboard API is unavailable for any reason
-                // (e.g. secure-context check failed, browser
-                // policy blocked it), fall back to the old save-
-                // to-vault behavior so the screenshot isn't lost.
-                console.warn(
-                    "[Screenshot] clipboard.write failed, falling back to disk:",
-                    clipErr,
-                );
-                // Build a filename. NOTE: `.slice(0, 15)` used to
-                // keep the `.` that separates seconds from
-                // milliseconds in ISO 8601 ("20260411194532.123Z"),
-                // producing filenames like `screenshot_20260411194532..png`
-                // (double dot). `.slice(0, 14)` trims to exactly
-                // `YYYYMMDDHHmmss` (14 chars).
-                const timestamp = new Date()
-                    .toISOString()
-                    .replace(/[-:T]/g, "")
-                    .slice(0, 14);
-                const filename = `screenshot_${timestamp}.png`;
-                const s = settingsStore.settings();
-                const folder = s.attachment_folder || ".mindzj/images";
-                const relativePath = `${folder}/${filename}`;
-                await invoke("write_binary_file", {
-                    relativePath,
-                    base64Data: base64Png,
-                });
-                const activeFile = vaultStore.activeFile();
-                if (activeFile) {
-                    const imgMarkdown = `![${filename}](${relativePath})`;
-                    document.dispatchEvent(
-                        new CustomEvent("mindzj:insert-text", {
-                            detail: { text: imgMarkdown },
-                        }),
-                    );
-                }
+            if (vaultStore.activeFile()) {
+                document.dispatchEvent(new CustomEvent("mindzj:insert-text", {
+                    detail: { text: `![${filename}](${relativePath})` },
+                }));
             }
         } catch (err) {
             console.error("[Screenshot] save failed:", err);
@@ -1740,7 +1725,7 @@ const App: Component = () => {
             } catch (e) {
                 console.error("Failed to auto-open vault from URL params:", e);
             }
-        } else {
+        } else if (getBackendKind() !== "web") {
             // No URL params — try to restore last opened vault
             try {
                 const last = localStorage.getItem("mindzj-last-vault");
@@ -1940,10 +1925,12 @@ const App: Component = () => {
         if (info) {
             document.title = `${isTauriRuntime ? "MindZJ" : "MindZJWeb"} — ${info.name}`;
             // Record last opened vault
-            localStorage.setItem(
-                "mindzj-last-vault",
-                JSON.stringify({ name: info.name, path: info.path }),
-            );
+            if (getBackendKind() !== "web") {
+                localStorage.setItem(
+                    "mindzj-last-vault",
+                    JSON.stringify({ name: info.name, path: info.path }),
+                );
+            }
         } else {
             document.title = isTauriRuntime ? "MindZJ" : "MindZJWeb";
         }
@@ -2010,7 +1997,6 @@ const App: Component = () => {
                         if (ws.sidebar_tab)
                             setSidebarTab(ws.sidebar_tab as SidebarTab);
                         setSidebarCollapsed(!!ws.sidebar_collapsed);
-                        if (ws.sidebar_width) setSidebarWidth(ws.sidebar_width);
                         const defaultTabs = buildDefaultSidebarTabs();
                         if (ws.sidebar_tab_order?.length) {
                             const reordered = ws.sidebar_tab_order
@@ -3113,6 +3099,7 @@ const App: Component = () => {
         }
 
         if (
+            isTauriRuntime &&
             isCtrlHeld(e) &&
             !e.altKey &&
             !e.shiftKey &&
@@ -3138,14 +3125,15 @@ const App: Component = () => {
         //
         // Ctrl+Shift+J is ALSO mapped here (Chrome muscle memory).
         if (
-            (isCtrlHeld(e) &&
+            isTauriRuntime &&
+            ((isCtrlHeld(e) &&
                 e.shiftKey &&
                 !e.altKey &&
                 (e.key === "I" ||
                     e.key === "J" ||
                     e.key === "i" ||
                     e.key === "j")) ||
-            e.key === "F12"
+                e.key === "F12")
         ) {
             e.preventDefault();
             e.stopPropagation();
@@ -3162,6 +3150,7 @@ const App: Component = () => {
         // to the window handle — the pure-JS path has occasionally
         // been lost when pressed while the editor DOM is busy.
         if (
+            isTauriRuntime &&
             isCtrlHeld(e) &&
             !e.shiftKey &&
             !e.altKey &&
@@ -3181,7 +3170,10 @@ const App: Component = () => {
         // behaviour AND gives the user a way to quickly hide the
         // window without reaching for the titlebar minimize button.
         // Configurable via `toggle-window-visible` hotkey.
-        if (matchesHotkey(e, getHotkey("toggle-window-visible", "Ctrl+J"))) {
+        if (
+            isTauriRuntime &&
+            matchesHotkey(e, getHotkey("toggle-window-visible", "Ctrl+J"))
+        ) {
             e.preventDefault();
             e.stopPropagation();
             void (async () => {
@@ -3718,6 +3710,7 @@ const App: Component = () => {
                                     <div style={{ display: "flex", gap: "2px" }}>
                                         <For each={sidebarTabs()}>
                                             {(tab, idx) => (
+                                            <>
                                             <button
                                                 draggable={true}
                                                 onDragStart={(e) => {
@@ -3805,12 +3798,67 @@ const App: Component = () => {
                                                     <path d={tab.icon} />
                                                 </svg>
                                             </button>
+                                            <Show when={!isTauriRuntime && tab.id === "calendar"}>
+                                                <button
+                                                    onClick={() => void startScreenshot()}
+                                                    disabled={screenshotLoading() || !!screenshotData()}
+                                                    title={t("hotkeys.screenshot")}
+                                                    aria-label={t("hotkeys.screenshot")}
+                                                    style={{
+                                                        width: "30px",
+                                                        height: "30px",
+                                                        display: "flex",
+                                                        "align-items": "center",
+                                                        "justify-content": "center",
+                                                        border: "none",
+                                                        "border-radius": "var(--mz-radius-sm)",
+                                                        background: "transparent",
+                                                        color: "var(--mz-text-muted)",
+                                                        cursor: screenshotLoading() ? "wait" : "pointer",
+                                                        opacity: screenshotLoading() ? "0.5" : "1",
+                                                    }}
+                                                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--mz-bg-hover)"; e.currentTarget.style.color = "var(--mz-text-primary)"; }}
+                                                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--mz-text-muted)"; }}
+                                                >
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M14 4h-4l-2 3H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+                                                        <circle cx="12" cy="13" r="3" />
+                                                    </svg>
+                                                </button>
+                                            </Show>
+                                            </>
                                             )}
                                         </For>
                                     </div>
                                 </div>
 
-                                {/* Right: collapse button */}
+                                {/* Right: width preset and collapse controls */}
+                                <button
+                                    onClick={() => {
+                                        const presets = [200, 260, 340, 420];
+                                        setSidebarWidth(presets.find((width) => width > sidebarWidth() + 20) ?? presets[0]);
+                                    }}
+                                    title={t("app.cycleSidebarWidth", { width: sidebarWidth() })}
+                                    aria-label={t("app.cycleSidebarWidth", { width: sidebarWidth() })}
+                                    style={{
+                                        width: "30px",
+                                        height: "30px",
+                                        display: "flex",
+                                        "align-items": "center",
+                                        "justify-content": "center",
+                                        border: "none",
+                                        "border-radius": "var(--mz-radius-sm)",
+                                        background: "transparent",
+                                        color: "var(--mz-text-muted)",
+                                        cursor: "pointer",
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="4" width="18" height="16" rx="2" />
+                                        <path d="M9 4v16M13 9h4M13 12h4M13 15h4" />
+                                    </svg>
+                                </button>
                                 <button
                                     onClick={() => setSidebarCollapsed(true)}
                                     title={t("app.collapseSidebar")}
@@ -4469,7 +4517,11 @@ const App: Component = () => {
                 <GotoLinePanel onClose={() => setShowGotoLine(false)} />
             </Show>
             <Show when={showSettings()}>
-                <SettingsModal onClose={() => setShowSettings(false)} />
+                <SettingsModal
+                    onClose={() => setShowSettings(false)}
+                    sidebarWidth={sidebarWidth()}
+                    onSidebarWidthChange={setSidebarWidth}
+                />
             </Show>
             <Show when={screenshotData()}>
                 <ScreenshotOverlay

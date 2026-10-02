@@ -13,6 +13,21 @@ interface CalendarDay {
   isToday: boolean;
 }
 
+type CalendarFileGroup = "daily" | "report" | "minutes" | "other";
+
+function calendarFileInfo(name: string, date: string): { group: CalendarFileGroup; title: string; reporter?: string } {
+  if (name === `${date}.md`) return { group: "daily", title: t("calendar.dailyNote") };
+  const prefix = `${date}_`;
+  if (!name.startsWith(prefix)) return { group: "other", title: displayName(name) };
+  const stem = name.replace(/\.md$/i, "").slice(prefix.length);
+  const group: CalendarFileGroup = stem.startsWith("minutes_") ? "minutes" : stem.startsWith("report_") ? "report" : "other";
+  const labeled = group === "minutes" ? stem.slice("minutes_".length) : group === "report" ? stem.slice("report_".length) : stem;
+  const splitAt = labeled.lastIndexOf("_");
+  const title = splitAt > 0 ? labeled.slice(0, splitAt) : labeled;
+  const reporter = splitAt > 0 ? labeled.slice(splitAt + 1) : undefined;
+  return { group, title, reporter };
+}
+
 function toDateStr(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
@@ -103,6 +118,20 @@ export const Calendar: Component = () => {
     };
     visit(vaultStore.fileTree());
     return result.sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const selectedDateFileGroups = createMemo(() => {
+    const groups: { id: CalendarFileGroup; label: string; entries: VaultEntry[] }[] = [
+      { id: "daily", label: t("calendar.dailyNote"), entries: [] },
+      { id: "report", label: t("calendar.newDailyReport"), entries: [] },
+      { id: "minutes", label: t("calendar.newMeetingMinutes"), entries: [] },
+      { id: "other", label: t("calendar.otherNotes"), entries: [] },
+    ];
+    for (const entry of selectedDateFiles()) {
+      const info = calendarFileInfo(entry.name, selectedDate());
+      groups.find((group) => group.id === info.group)?.entries.push(entry);
+    }
+    return groups.filter((group) => group.entries.length > 0);
   });
 
   const weekdayLabels = createMemo(() => getWeekdayLabels());
@@ -577,41 +606,32 @@ export const Calendar: Component = () => {
           when={selectedDateFiles().length > 0}
           fallback={<div style={{ padding: "4px 2px", color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-xs)" }}>{t("calendar.noFilesForDate")}</div>}
         >
-          <div style={{ display: "flex", "flex-direction": "column", gap: "2px", "max-height": "132px", "overflow-y": "auto" }}>
-            <For each={selectedDateFiles()}>
-              {(entry) => {
-                const typeLabel = () => entry.name === `${selectedDate()}.md`
-                  ? t("calendar.dailyNote")
-                  : entry.name.includes("_minutes_")
-                    ? t("calendar.newMeetingMinutes")
-                    : t("calendar.newDailyReport");
-                return (
-                  <button
-                    title={entry.relative_path}
-                    onClick={() => { void vaultStore.openFile(entry.relative_path).catch((error) => console.error("Failed to open calendar file:", error)); }}
-                    style={{
-                      display: "flex",
-                      "align-items": "center",
-                      gap: "6px",
-                      width: "100%",
-                      padding: "5px 6px",
-                      border: "none",
-                      background: "transparent",
-                      color: "var(--mz-text-secondary)",
-                      cursor: "pointer",
-                      "text-align": "left",
-                      "border-radius": "var(--mz-radius-sm)",
-                      "font-size": "var(--mz-font-size-xs)",
-                      "font-family": "var(--mz-font-sans)",
+          <div style={{ display: "flex", "flex-direction": "column", gap: "7px", "max-height": "180px", "overflow-y": "auto" }}>
+            <For each={selectedDateFileGroups()}>
+              {(group) => (
+                <section>
+                  <div style={{ padding: "3px 5px 2px", color: "var(--mz-text-muted)", "font-size": "9px", "font-weight": "700", "text-transform": "uppercase", "letter-spacing": "0.04em" }}>{group.label}</div>
+                  <For each={group.entries}>
+                    {(entry) => {
+                      const info = () => calendarFileInfo(entry.name, selectedDate());
+                      return (
+                        <button
+                          title={`${info().title}${info().reporter ? ` — ${info().reporter}` : ""}\n${entry.relative_path}`}
+                          onClick={() => { void vaultStore.openFile(entry.relative_path).catch((error) => console.error("Failed to open calendar file:", error)); }}
+                          style={{ display: "flex", "flex-direction": "column", gap: "1px", width: "100%", padding: "4px 6px", border: "none", background: "transparent", color: "var(--mz-text-secondary)", cursor: "pointer", "text-align": "left", "border-radius": "var(--mz-radius-sm)", "font-size": "var(--mz-font-size-xs)", "font-family": "var(--mz-font-sans)" }}
+                          onMouseEnter={(event) => { event.currentTarget.style.background = "var(--mz-bg-hover)"; }}
+                          onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
+                        >
+                          <span style={{ width: "100%", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap", "font-weight": "600" }}>{info().title}</span>
+                          <Show when={info().reporter}>
+                            {(reporter) => <span style={{ color: "var(--mz-text-muted)", "font-size": "10px" }}>{reporter()}</span>}
+                          </Show>
+                        </button>
+                      );
                     }}
-                    onMouseEnter={(event) => { event.currentTarget.style.background = "var(--mz-bg-hover)"; }}
-                    onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
-                  >
-                    <span style={{ color: "var(--mz-accent)", "font-size": "9px", "font-weight": "700", "white-space": "nowrap" }}>{typeLabel()}</span>
-                    <span style={{ overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>{displayName(entry.name)}</span>
-                  </button>
-                );
-              }}
+                  </For>
+                </section>
+              )}
             </For>
           </div>
         </Show>

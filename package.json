@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "build:web": "npm run build && cargo build -p mindzj --bin mindzj-server",
     "server:web": "cargo run -p mindzj --bin mindzj-server",
+    "sync:pages-vault": "node scripts/sync-pages-vault.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "node scripts/clean-bundle.mjs && tauri build",

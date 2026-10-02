@@ -61,7 +61,15 @@ export function resolveNoteRelativePath(
   if (normalized.startsWith(".mindzj/")) {
     return joinVaultPath(normalized);
   }
-  return joinVaultPath(getParentPath(currentFilePath ?? ""), normalized);
+  const parentPath = getParentPath(currentFilePath ?? "");
+  // Also accept a Vault-root-relative path written without a leading slash
+  // when it already includes the current note's directory. This avoids
+  // duplicating that directory for paths such as
+  // `folder/subfolder/image.png` in a note stored in `folder/subfolder/`.
+  if (parentPath && (normalized === parentPath || normalized.startsWith(`${parentPath}/`))) {
+    return joinVaultPath(normalized);
+  }
+  return joinVaultPath(parentPath, normalized);
 }
 
 export function toVaultAssetUrl(vaultRoot: string, relativePath: string): string {

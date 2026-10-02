@@ -6,6 +6,7 @@ target/
 dist/
 src-tauri/target/
 cli/target/
+/Vaults/
 
 # Environment
 .env

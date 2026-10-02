@@ -1197,6 +1197,18 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         const items: MenuItem[] = [];
         if (!isDir) {
             items.push({ label: t("context.open"), icon: "\uD83D\uDCC4", action: () => { void openFileRouted(path); } });
+            const extension = name.split(".").pop()?.toLowerCase();
+            if ((extension === "html" || extension === "htm") && isMarkdownPath(vaultStore.activeFile()?.path ?? "")) {
+                items.push({
+                    label: t("context.insertHtmlEmbed"),
+                    icon: "🌐",
+                    action: () => {
+                        document.dispatchEvent(new CustomEvent("mindzj:insert-text", {
+                            detail: { text: `![[/${path}]]` },
+                        }));
+                    },
+                });
+            }
         }
         items.push({
             label: t("context.newNote"), icon: "\u270F\uFE0F",
