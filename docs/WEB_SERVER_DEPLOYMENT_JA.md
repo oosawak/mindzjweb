@@ -45,7 +45,7 @@ cargo --version
 
 ```bash
 cd ~
-git clone https://github.com/oosawak/mindzj.git mindzjweb
+git clone https://github.com/oosawak/mindzjweb.git mindzjweb
 cd ~/mindzjweb
 npm ci
 npm run build

@@ -465,7 +465,7 @@ export const WelcomeScreen: Component = () => {
             <>
               {t("welcome.webTaglinePrefix")}
               <a
-                href="https://github.com/oosawak/mindzj"
+                href="https://github.com/oosawak/mindzjweb"
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: "var(--mz-accent)", "text-decoration": "none" }}

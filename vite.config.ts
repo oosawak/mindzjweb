@@ -4,9 +4,11 @@ import UnoCSS from "unocss/vite";
 
 const host = process.env.TAURI_DEV_HOST;
 const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
+const isPagesDemo = process.env.VITE_PAGES_DEMO === "true";
 
 export default defineConfig(async () => ({
   plugins: [UnoCSS(), solidPlugin()],
+  base: isPagesDemo ? "/mindzjweb/web/" : "/",
 
   cacheDir: ".vite-cache",
 
@@ -51,9 +53,11 @@ export default defineConfig(async () => ({
   },
 
   build: {
+    outDir: isPagesDemo ? "dist-pages" : "dist",
+    emptyOutDir: !isPagesDemo,
+    sourcemap: !isPagesDemo,
     target: "esnext",
     minify: isTauriBuild ? false : "esbuild",
-    sourcemap: true,
   },
 
   resolve: {

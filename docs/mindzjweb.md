@@ -18,15 +18,17 @@ npm run build:web
 For a production Ubuntu deployment with HTTPS, Basic authentication, systemd,
 and GitHub clone/update steps, see [WEB_SERVER_DEPLOYMENT_JA.md](WEB_SERVER_DEPLOYMENT_JA.md).
 
-## GitHub Pages Vault viewer
+## GitHub Pages demo
 
-`docs/web/` is a static, read-only viewer that works without the Rust server.
-Browser-only sample notes are stored in that browser's local storage and do not
-change the published Vault. Before publishing Vault updates, run
-`npm run sync:pages-vault`; this copies visible Vault files and resources to
-`docs/web/docs/` and refreshes its note manifest. Hidden `.mindzj` app data,
-settings, and snapshots are excluded. Pushing changes to `main` deploys the
-viewer and copied Vault through the Pages workflow.
+GitHub Pages builds the actual MindZJ web interface in browser demo mode and
+serves it at <https://oosawak.github.io/mindzjweb/web/>. The Rust server is not
+needed for this demo. Sample Vault files are copied to `docs/web/Vaults/`;
+visitors can create and edit notes, which are saved in that browser's local
+storage and do not change the published Vault. Before publishing Vault updates,
+run `npm run sync:pages-vault`; hidden `.mindzj` settings, plugins, and snapshots
+are excluded. The workflow builds the app and deploys the whole `docs/` folder.
+Enable GitHub Pages once in repository **Settings → Pages**, using **GitHub
+Actions** as the source.
 
 ## Run
 

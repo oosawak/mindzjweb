@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:pages-demo": "VITE_PAGES_DEMO=true vite build",
     "preview": "vite preview",
     "build:web": "npm run build && cargo build -p mindzj --bin mindzj-server",
     "server:web": "cargo run -p mindzj --bin mindzj-server",

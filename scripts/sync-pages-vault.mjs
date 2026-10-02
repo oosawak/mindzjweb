@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = path.join(repoRoot, "Vaults");
-const outputRoot = path.join(repoRoot, "docs", "web", "docs");
+const outputRoot = path.join(repoRoot, "docs", "web", "Vaults");
 
 async function collectFiles(directory, relative = "") {
   const files = [];
@@ -47,4 +47,4 @@ await writeFile(
   path.join(outputRoot, "manifest.json"),
   `${JSON.stringify({ notes, files: files.map((file) => file.relative).sort((a, b) => a.localeCompare(b, "ja")) }, null, 2)}\n`,
 );
-console.log(`Synced ${files.length} Vault files (${notes.length} Markdown notes) to docs/web/docs.`);
+console.log(`Synced ${files.length} Vault files (${notes.length} Markdown notes) to docs/web/Vaults.`);

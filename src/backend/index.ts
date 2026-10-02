@@ -1,4 +1,8 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import { PagesDemoBackend, pagesDemoAssetUrl } from "./pagesDemo";
+
+const pagesDemo = import.meta.env.VITE_PAGES_DEMO === "true";
+const pagesBackend = new PagesDemoBackend();
 
 /** Backend boundary shared by the Tauri desktop app and browser builds. */
 export interface MindZjBackend {
@@ -43,7 +47,9 @@ class WebBackend implements MindZjBackend {
 
 const backend: MindZjBackend = isTauriRuntime()
   ? new TauriBackend()
-  : new WebBackend();
+  : pagesDemo
+    ? pagesBackend
+    : new WebBackend();
 
 /** Drop-in invoke function; keeps store and component call sites backend-neutral. */
 export const invoke = <T>(command: string, args?: Record<string, unknown>): Promise<T> =>
@@ -51,4 +57,12 @@ export const invoke = <T>(command: string, args?: Record<string, unknown>): Prom
 
 export function getBackendKind(): "tauri" | "web" {
   return isTauriRuntime() ? "tauri" : "web";
+}
+
+export function isPagesDemo(): boolean {
+  return pagesDemo && !isTauriRuntime();
+}
+
+export function getPagesDemoAssetUrl(vaultRoot: string, relativePath: string): string {
+  return pagesDemoAssetUrl(vaultRoot, relativePath);
 }

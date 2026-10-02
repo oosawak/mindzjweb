@@ -4,6 +4,7 @@ target/
 
 # Build output
 dist/
+dist-pages/
 src-tauri/target/
 cli/target/
 /Vaults/

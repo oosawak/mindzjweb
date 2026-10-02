@@ -10,7 +10,7 @@ import {
     onMount,
     onCleanup,
 } from "solid-js";
-import { getBackendKind, invoke } from "./backend";
+import { getBackendKind, invoke, isPagesDemo } from "./backend";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
@@ -1725,6 +1725,12 @@ const App: Component = () => {
             } catch (e) {
                 console.error("Failed to auto-open vault from URL params:", e);
             }
+        } else if (isPagesDemo()) {
+            try {
+                await vaultStore.openVault("Vaults/test", "test");
+            } catch (e) {
+                console.error("Failed to open the Pages sample Vault:", e);
+            }
         } else if (getBackendKind() !== "web") {
             // No URL params — try to restore last opened vault
             try {
@@ -1923,7 +1929,7 @@ const App: Component = () => {
     createEffect(() => {
         const info = vaultStore.vaultInfo();
         if (info) {
-            document.title = `${isTauriRuntime ? "MindZJ" : "MindZJWeb"} — ${info.name}`;
+            document.title = `${isTauriRuntime ? "MindZJ" : "MindZJWeb"} — ${info.name}${isPagesDemo() ? "（このブラウザーに保存）" : ""}`;
             // Record last opened vault
             if (getBackendKind() !== "web") {
                 localStorage.setItem(
