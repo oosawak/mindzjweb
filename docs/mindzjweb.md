@@ -16,7 +16,7 @@ npm run build:web
 ```
 
 For a production Ubuntu deployment with HTTPS, Basic authentication, systemd,
-and GitHub clone/update steps, see [WEB_SERVER_DEPLOYMENT_JA.md](WEB_SERVER_DEPLOYMENT_JA.md).
+and GitHub clone/update steps, see [WEB_SERVER_DEPLOYMENT_JA.md](mindzjweb/WEB_SERVER_DEPLOYMENT_JA.md).
 
 ## GitHub Pages demo
 

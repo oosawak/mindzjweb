@@ -3469,13 +3469,64 @@ const APP_REPO_URL = "https://github.com/zjok/mindzj";
 const APP_ISSUE_URL = "https://github.com/zjok/mindzj/issues";
 const APP_RELEASES_URL = "https://github.com/zjok/mindzj/releases";
 const APP_DOCS_URL = "https://github.com/zjok/mindzj/tree/main/docs";
+const WEB_DOCS_URL = "https://github.com/oosawak/mindzj/tree/main/docs/mindzjweb";
 const DONATION_BMC_URL = "https://www.buymeacoffee.com/superjohn";
 const DONATION_KOFI_URL = "https://ko-fi.com/superjohn";
 const DONATION_PAYPAL_URL = "https://paypal.me/TanCat997";
 
+const MindZJWebCard: Component = () => (
+    <div
+        style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "12px",
+            padding: "24px",
+            background: "var(--mz-bg-secondary)",
+            border: "1px solid var(--mz-border)",
+            "border-radius": "var(--mz-radius-md)",
+            "margin-bottom": "24px",
+        }}>
+        <div
+            style={{
+                display: "flex",
+                "align-items": "center",
+                "justify-content": "space-between",
+                gap: "12px",
+                "flex-wrap": "wrap",
+            }}>
+            <div>
+                <div style={{ "font-size": "1.25em", "font-weight": "800", color: "var(--mz-text-primary)" }}>
+                    {t("settings.webAboutTitle")}
+                </div>
+                <div style={{ "font-size": "var(--mz-font-size-sm)", color: "var(--mz-text-muted)", "margin-top": "4px" }}>
+                    {t("common.version")} {APP_VERSION}
+                </div>
+            </div>
+            <span style={{ padding: "5px 10px", "border-radius": "999px", background: "var(--mz-bg-tertiary)", color: "var(--mz-accent)", "font-size": "var(--mz-font-size-xs)", "font-weight": "700" }}>
+                Web
+            </span>
+        </div>
+        <p style={{ margin: "0", "font-size": "var(--mz-font-size-sm)", color: "var(--mz-text-secondary)", "line-height": "1.7" }}>
+            {t("settings.webAboutDescription")}
+        </p>
+        <div style={{ "font-size": "var(--mz-font-size-sm)", color: "var(--mz-accent)", "font-weight": "600" }}>
+            {t("settings.webAboutTagline")}
+        </div>
+        <div style={{ display: "flex", "flex-wrap": "wrap", gap: "10px" }}>
+            <AboutLinkButton
+                icon="📖"
+                label={t("settings.webDocumentation")}
+                onClick={() => void openExternalUrl(WEB_DOCS_URL)}
+            />
+        </div>
+    </div>
+);
+
 const AboutPanel: Component = () => {
     return (
         <div>
+            <MindZJWebCard />
+
             {/* Hero card — logo, name, tagline, version */}
             <div
                 style={{

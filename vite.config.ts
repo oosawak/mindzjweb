@@ -1,13 +1,14 @@
 import { defineConfig } from "vite";
 import solidPlugin from "vite-plugin-solid";
 import UnoCSS from "unocss/vite";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 
 const host = process.env.TAURI_DEV_HOST;
 const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
 const isPagesDemo = process.env.VITE_PAGES_DEMO === "true";
 
 export default defineConfig(async () => ({
-  plugins: [UnoCSS(), solidPlugin()],
+  plugins: [basicSsl(), UnoCSS(), solidPlugin()],
   base: isPagesDemo ? "/mindzjweb/web/" : "/",
 
   cacheDir: ".vite-cache",
@@ -18,6 +19,7 @@ export default defineConfig(async () => ({
     port: 1430,
     strictPort: false,
     host: host || false,
+    https: true,
     proxy: {
       "/api": process.env.MINDZJ_API_TARGET || "http://127.0.0.1:3000",
     },
