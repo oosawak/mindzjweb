@@ -13,6 +13,7 @@ import { editorStore, type ViewMode } from "../../stores/editor";
 import type { FileContent } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
 import { isMarkdownPath } from "../../utils/fileTypes";
+import { openImageInPhotoCraft } from "../../utils/photoCraft";
 
 // Tab width bounds. Each tab sizes itself to its filename via
 // `computeTabWidth` below; these constants just cap the result.
@@ -231,8 +232,17 @@ export const TabBar: Component<TabBarProps> = (props) => {
         console.warn("[TabBar] Failed to reveal file in file manager:", error);
       });
     };
-    const setViewMode = (mode: ViewMode) => props.onSetViewMode?.(file.path, mode);
-    const currentMode = editorStore.getViewModeForFile(file.path);
+    const setViewMode = (mode: ViewMode) => {
+      if (file.kind === "image") {
+        if (mode === "live-preview") openImageInPhotoCraft(file.path);
+        else if (mode === "reading") props.onSetViewMode?.(file.path, mode);
+        return;
+      }
+      props.onSetViewMode?.(file.path, mode);
+    };
+    const currentMode = file.kind === "image"
+      ? "reading"
+      : editorStore.getViewModeForFile(file.path);
     const canExportPdf = !!props.onExportPdf && isMarkdownPath(file.path);
 
     const entries: ContextEntry[] = [];
@@ -263,11 +273,13 @@ export const TabBar: Component<TabBarProps> = (props) => {
         onClick: () => setViewMode("live-preview"),
         selected: currentMode === "live-preview",
       });
-      entries.push({
-        label: t("context.sourceMode"),
-        onClick: () => setViewMode("source"),
-        selected: currentMode === "source",
-      });
+      if (file.kind !== "image") {
+        entries.push({
+          label: t("context.sourceMode"),
+          onClick: () => setViewMode("source"),
+          selected: currentMode === "source",
+        });
+      }
     }
     if (props.onOpenSplit) {
       entries.push({ separator: true });

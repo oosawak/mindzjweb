@@ -16,6 +16,7 @@ import { vaultStore } from "../../stores/vault";
 import { getMarkerPalette } from "./markerColors";
 import { ImagePicker } from "./ImagePicker";
 import { requestViewModeChange } from "../../utils/editMode";
+import { openImageInPhotoCraft } from "../../utils/photoCraft";
 
 interface ToolbarButton {
   command: string;
@@ -89,6 +90,7 @@ export const Toolbar: Component = () => {
   const [showOverflowMenu, setShowOverflowMenu] = createSignal(false);
   const [showMarkerMenu, setShowMarkerMenu] = createSignal(false);
   const [showImagePicker, setShowImagePicker] = createSignal(false);
+  const [showPhotoCraftLicense, setShowPhotoCraftLicense] = createSignal(false);
   const [overflowIndex, setOverflowIndex] = createSignal<number>(-1);
   const [headingMenuPos, setHeadingMenuPos] = createSignal({ x: 0, y: 0 });
   const [markerMenuPos, setMarkerMenuPos] = createSignal({ x: 0, y: 0 });
@@ -142,11 +144,29 @@ export const Toolbar: Component = () => {
     document.dispatchEvent(new CustomEvent("mindzj:editor-command", { detail }));
   };
 
-  const currentViewMode = () =>
-    editorStore.getViewModeForFile(vaultStore.activeFile()?.path ?? null);
+  const isImageFile = () => vaultStore.activeFile()?.kind === "image";
+  const currentViewMode = () => isImageFile()
+    ? "reading"
+    : editorStore.getViewModeForFile(vaultStore.activeFile()?.path ?? null);
   const activePath = () => vaultStore.activeFile()?.path ?? null;
+  const modeButtons = createMemo(() => isImageFile()
+    ? [
+        { mode: "reading" as const, label: t("context.readingView") },
+        { mode: "live-preview" as const, label: t("context.editMode") },
+        { mode: "photocraft-license" as const, label: t("photocraft.licenseButton") },
+      ]
+    : [
+        { mode: "reading" as const, label: t("context.readingView") },
+        { mode: "live-preview" as const, label: t("context.editMode") },
+        { mode: "source" as const, label: t("context.sourceMode") },
+      ]);
+  const openPhotoCraftLicense = () => setShowPhotoCraftLicense(true);
   const selectMode = (mode: "reading" | "live-preview" | "source") => {
     const path = activePath();
+    if (isImageFile()) {
+      if (mode === "live-preview" && path) openImageInPhotoCraft(path);
+      return;
+    }
     if (path) void requestViewModeChange(path, mode);
   };
   const saveCurrent = () => {
@@ -268,17 +288,18 @@ export const Toolbar: Component = () => {
         "flex-shrink": "0",
       }}
     >
-      <div
-        ref={itemsRef}
-        style={{
-          display: "flex",
-          "align-items": "center",
-          gap: "1px",
-          flex: "1",
-          "min-width": "0",
-          overflow: "hidden",
-        }}
-      >
+      <Show when={!isImageFile()}>
+        <div
+          ref={itemsRef}
+          style={{
+            display: "flex",
+            "align-items": "center",
+            gap: "1px",
+            flex: "1",
+            "min-width": "0",
+            overflow: "hidden",
+          }}
+        >
         <For each={otherItems().slice(0, 2)}>
           {(item, index) => (
             <span data-toolbar-idx={index()} style={{ display: "inline-flex", "align-items": "center" }}>
@@ -323,7 +344,8 @@ export const Toolbar: Component = () => {
             </span>
           )}
         </For>
-      </div>
+        </div>
+      </Show>
 
       <div
         ref={rightAreaRef}
@@ -332,10 +354,10 @@ export const Toolbar: Component = () => {
           "align-items": "center",
           gap: "2px",
           "flex-shrink": "0",
-          "margin-left": "4px",
+          "margin-left": isImageFile() ? "auto" : "4px",
         }}
       >
-        <Show when={overflowIndex() >= 0}>
+        <Show when={!isImageFile() && overflowIndex() >= 0}>
           <button
             onClick={(event) => {
               event.stopPropagation();
@@ -354,7 +376,7 @@ export const Toolbar: Component = () => {
           </button>
         </Show>
 
-        <Show when={activePath() && currentViewMode() !== "reading"}>
+        <Show when={!isImageFile() && activePath() && currentViewMode() !== "reading"}>
           <button
             onClick={saveCurrent}
             title={t("common.save")}
@@ -378,24 +400,94 @@ export const Toolbar: Component = () => {
             </span>
           </button>
         </Show>
-        <For each={[
-          ["reading", t("context.readingView")],
-          ["live-preview", t("context.editMode")],
-          ["source", t("context.sourceMode")],
-        ] as const}>{([mode, label]) => <button
-          onClick={() => selectMode(mode)}
-          title={label}
-          aria-pressed={currentViewMode() === mode}
-          style={{
-            padding: "4px 7px", border: "1px solid var(--mz-border)",
-            background: currentViewMode() === mode ? "var(--mz-bg-active)" : "transparent",
-            color: currentViewMode() === mode ? "var(--mz-accent)" : "var(--mz-text-secondary)",
-            cursor: "pointer", "border-radius": "var(--mz-radius-md)",
-            "font-size": "var(--mz-font-size-xs)", "font-family": "var(--mz-font-sans)",
-            "flex-shrink": "0",
-          }}
-        >{label}</button>}</For>
+        <For each={modeButtons()}>{({ mode, label }) => {
+          const selected = () => mode === "photocraft-license"
+            ? showPhotoCraftLicense()
+            : currentViewMode() === mode;
+          return <button
+            onClick={() => mode === "photocraft-license"
+              ? openPhotoCraftLicense()
+              : selectMode(mode)}
+            title={label}
+            aria-pressed={selected()}
+            style={{
+              padding: "4px 7px", border: "1px solid var(--mz-border)",
+              background: selected() ? "var(--mz-bg-active)" : "transparent",
+              color: selected() ? "var(--mz-accent)" : "var(--mz-text-secondary)",
+              cursor: "pointer", "border-radius": "var(--mz-radius-md)",
+              "font-size": "var(--mz-font-size-xs)", "font-family": "var(--mz-font-sans)",
+              "flex-shrink": "0",
+            }}
+          >{label}</button>;
+        }}</For>
       </div>
+
+      <Show when={showPhotoCraftLicense()}>
+        <div
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowPhotoCraftLicense(false);
+          }}
+          style={{
+            position: "fixed",
+            inset: "0",
+            display: "flex",
+            "align-items": "center",
+            "justify-content": "center",
+            padding: "20px",
+            background: "rgba(0,0,0,.58)",
+            "z-index": "20000",
+          }}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="photocraft-license-title"
+            style={{
+              width: "min(560px, 100%)",
+              "max-height": "min(80vh, 700px)",
+              overflow: "auto",
+              padding: "22px",
+              color: "var(--mz-text-primary)",
+              background: "var(--mz-bg-secondary)",
+              border: "1px solid var(--mz-border-strong)",
+              "border-radius": "var(--mz-radius-lg)",
+              "box-shadow": "0 20px 60px rgba(0,0,0,.45)",
+            }}>
+            <div style={{ display: "flex", "align-items": "center", gap: "12px", "margin-bottom": "16px" }}>
+              <h2 id="photocraft-license-title" style={{ margin: "0", flex: "1", "font-size": "var(--mz-font-size-lg)" }}>
+                {t("photocraft.licenseTitle")}
+              </h2>
+              <button
+                type="button"
+                title={t("common.close")}
+                aria-label={t("common.close")}
+                onClick={() => setShowPhotoCraftLicense(false)}
+                style={{ ...iconButtonStyle, border: "1px solid var(--mz-border)", "border-radius": "var(--mz-radius-sm)" }}>
+                ×
+              </button>
+            </div>
+            <p style={{ "line-height": "1.6", color: "var(--mz-text-secondary)" }}>
+              {t("photocraft.licenseSummary")}
+            </p>
+            <h3 style={{ "margin-bottom": "6px", "font-size": "var(--mz-font-size-md)" }}>
+              {t("photocraft.mindzjChangesTitle")}
+            </h3>
+            <p style={{ "line-height": "1.6", color: "var(--mz-text-secondary)" }}>
+              {t("photocraft.mindzjChanges")}
+            </p>
+            <p style={{ "font-size": "var(--mz-font-size-xs)", color: "var(--mz-text-muted)" }}>
+              {t("photocraft.upstreamRevision")}
+            </p>
+            <div style={{ display: "flex", "flex-wrap": "wrap", gap: "8px", "margin-top": "18px" }}>
+              <a href="https://github.com/storytold/photocraft" target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("photocraft.upstreamLink")}</a>
+              <a href={photoCraftLicenseUrl("LICENSE-MIT")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>MIT License</a>
+              <a href={photoCraftLicenseUrl("LICENSE-APACHE")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>Apache-2.0</a>
+              <a href={photoCraftLicenseUrl("NOTICE")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>NOTICE</a>
+              <a href={photoCraftLicenseUrl("ATTRIBUTION.md")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("photocraft.attributionLink")}</a>
+            </div>
+          </section>
+        </div>
+      </Show>
 
       <Show when={showHeadingMenu()}>
         <div
@@ -541,6 +633,22 @@ export const Toolbar: Component = () => {
       </Show>
     </div>
   );
+};
+
+function photoCraftLicenseUrl(fileName: string): string {
+  const appBase = new URL(import.meta.env.BASE_URL, window.location.origin);
+  return new URL(`photocraft/${fileName}`, appBase).toString();
+}
+
+const licenseLinkStyle = {
+  display: "inline-flex",
+  "align-items": "center",
+  padding: "7px 10px",
+  color: "var(--mz-accent)",
+  border: "1px solid var(--mz-border)",
+  "border-radius": "var(--mz-radius-md)",
+  "text-decoration": "none",
+  "font-size": "var(--mz-font-size-sm)",
 };
 
 const ToolbarBtn: Component<{

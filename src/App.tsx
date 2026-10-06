@@ -99,6 +99,11 @@ import { getClientPlatform } from "./utils/platform";
 type SidebarTab = "files" | "outline" | "search" | "calendar";
 type SplitDirection = "left" | "right" | "up" | "down";
 type PaneSlot = "primary" | "secondary";
+type PhotoCraftSession = {
+    url: string;
+    fileName: string;
+    close: () => void;
+};
 type AiPanelModelOption = {
     value: string;
     label: string;
@@ -394,6 +399,8 @@ const App: Component = () => {
     const [aiHistoryPositionReady, setAiHistoryPositionReady] =
         createSignal(false);
     const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>("files");
+    const [photoCraftSession, setPhotoCraftSession] =
+        createSignal<PhotoCraftSession | null>(null);
     const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
     const [showVaultMenu, setShowVaultMenu] = createSignal(false);
     const [sortMode, setSortMode] = createSignal<SortMode>("custom");
@@ -1478,6 +1485,17 @@ const App: Component = () => {
     onMount(async () => {
         (window as any).__mindzj_flush_workspace = flushWorkspaceNow;
         (window as any).__mindzj_switch_open_tab = switchOpenTab;
+        const handleOpenPhotoCraft = (event: Event) => {
+            const session = (event as CustomEvent<PhotoCraftSession>).detail;
+            if (!session?.url) return;
+            photoCraftSession()?.close();
+            setPhotoCraftSession(session);
+        };
+        window.addEventListener("mindzj:open-photocraft", handleOpenPhotoCraft);
+        onCleanup(() => {
+            window.removeEventListener("mindzj:open-photocraft", handleOpenPhotoCraft);
+            photoCraftSession()?.close();
+        });
         document.body.style.removeProperty("zoom");
         document.documentElement.style.removeProperty("font-size");
 
@@ -4454,8 +4472,12 @@ const App: Component = () => {
                             {/* Editor area — uses createMemo to derive stable values so
                             PluginViewHost is NOT destroyed/recreated on every save. */}
                             <Show
-                                when={vaultStore.activeFile()}
+                                when={photoCraftSession()}
                                 fallback={
+                                    <>
+                                    <Show
+                                        when={vaultStore.activeFile()}
+                                        fallback={
                                     <div
                                         style={{
                                             flex: "1",
@@ -4468,10 +4490,11 @@ const App: Component = () => {
                                         }}>
                                         {t("app.openFileOrSearch")}
                                     </div>
-                                }>
+                                        }>
                                 <Show
                                     when={
-                                        (settingsStore.settings()
+                                        vaultStore.activeFile()?.kind === "image" ||
+                                        ((settingsStore.settings()
                                             .show_markdown_toolbar ||
                                             editorStore.getViewModeForFile(
                                                 vaultStore.activeFile()?.path ?? null,
@@ -4484,7 +4507,7 @@ const App: Component = () => {
                                                 .split(".")
                                                 .pop()
                                                 ?.toLowerCase() ?? "",
-                                        )
+                                        ))
                                     }>
                                     <Toolbar />
                                 </Show>
@@ -4552,7 +4575,66 @@ const App: Component = () => {
                                     onClose={closeAiPanel}
                                 />
                             </Show>
-                        </Show>
+                                    </>
+                                }>
+                                <div
+                                    style={{
+                                        flex: "1",
+                                        display: "flex",
+                                        "flex-direction": "column",
+                                        "min-width": "0",
+                                        "min-height": "0",
+                                        overflow: "hidden",
+                                        background: "var(--mz-bg-primary)",
+                                    }}>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            "align-items": "center",
+                                            gap: "8px",
+                                            height: "34px",
+                                            padding: "0 12px",
+                                            "flex-shrink": "0",
+                                            color: "var(--mz-text-secondary)",
+                                            background: "var(--mz-bg-secondary)",
+                                            "border-bottom": "1px solid var(--mz-border)",
+                                            "font-size": "var(--mz-font-size-sm)",
+                                        }}>
+                                        <span style={{ flex: "1", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
+                                            PhotoCraft · {photoCraftSession()!.fileName}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            title={t("common.close")}
+                                            aria-label={t("common.close")}
+                                            onClick={() => {
+                                                photoCraftSession()?.close();
+                                                setPhotoCraftSession(null);
+                                            }}
+                                            style={{
+                                                width: "26px",
+                                                height: "26px",
+                                                display: "flex",
+                                                "align-items": "center",
+                                                "justify-content": "center",
+                                                border: "1px solid var(--mz-border)",
+                                                "border-radius": "var(--mz-radius-sm)",
+                                                background: "transparent",
+                                                color: "var(--mz-text-secondary)",
+                                                cursor: "pointer",
+                                            }}>
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                    <iframe
+                                        src={photoCraftSession()!.url}
+                                        title={`PhotoCraft — ${photoCraftSession()!.fileName}`}
+                                        allow="clipboard-read; clipboard-write"
+                                        style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
+                                    />
+                                </div>
+                            </Show>
+                            </Show>
                     </main>
                 </div>
 

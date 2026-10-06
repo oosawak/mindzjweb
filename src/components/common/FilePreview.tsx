@@ -28,6 +28,37 @@ export const FilePreview: Component<{
             return "";
         }
     });
+    const photoCraftImagePath = () => {
+        if (props.filePath.replace(/\\/g, "/").toLowerCase() !== "photocraft/index.html") return null;
+        return new URLSearchParams(window.location.search).get("photocraft_image");
+    };
+    const htmlAssetUrl = createMemo(() => {
+        const url = assetUrl();
+        if (!url || !photoCraftImagePath()) return url;
+        return `${url}?mindzj_photocraft_bridge=1`;
+    });
+
+    async function sendPhotoCraftImage(frame: HTMLIFrameElement) {
+        const path = photoCraftImagePath();
+        const root = vaultStore.vaultInfo()?.path;
+        if (!path || !root || !frame.contentWindow) return;
+        if (path.startsWith("/") || path.split(/[\\/]/).includes("..")) {
+            console.warn("Rejected unsafe PhotoCraft image path:", path);
+            return;
+        }
+        try {
+            const response = await fetch(toVaultAssetUrl(root, path));
+            if (!response.ok) throw new Error(`Image fetch failed: ${response.status}`);
+            const blob = await response.blob();
+            frame.contentWindow.postMessage({
+                type: "mindzj:photocraft-open-image",
+                fileName: path.split(/[\\/]/).pop() || "image",
+                file: blob,
+            }, "*");
+        } catch (error) {
+            console.error("Could not send image to PhotoCraft:", error);
+        }
+    }
 
     const openInDefaultApp = async () => {
         try {
@@ -156,10 +187,13 @@ export const FilePreview: Component<{
                     >
                         <Show when={extension() === "HTML" || extension() === "HTM"}>
                             <iframe
-                                src={assetUrl()}
+                                src={htmlAssetUrl()}
                                 title={fileName()}
                                 sandbox="allow-scripts allow-forms allow-popups allow-downloads"
                                 referrerPolicy="no-referrer"
+                                onLoad={(event) => {
+                                    if (photoCraftImagePath()) void sendPhotoCraftImage(event.currentTarget);
+                                }}
                                 style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
                             />
                         </Show>

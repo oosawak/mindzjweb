@@ -195,19 +195,23 @@ async fn list_vaults(Query(query): Query<std::collections::HashMap<String, Strin
 async fn asset(
     State(state): State<ServerState>,
     Path(relative_path): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
 ) -> Result<impl IntoResponse, ApiError> {
     let ctx = context(&state)?;
-    let bytes = ctx
+    let mut bytes = ctx
         .vault
         .read_binary(&relative_path)
         .map_err(ApiError::from_kernel)?;
-    let content_type = match PathBuf::from(&relative_path)
+    let extension = PathBuf::from(&relative_path)
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap_or("")
-        .to_ascii_lowercase()
-        .as_str()
-    {
+        .to_ascii_lowercase();
+    let content_type = match extension.as_str() {
+        "js" | "mjs" => "text/javascript; charset=utf-8",
+        "wasm" => "application/wasm",
+        "css" => "text/css; charset=utf-8",
+        "json" => "application/json; charset=utf-8",
         "html" | "htm" => "text/html; charset=utf-8",
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
@@ -232,15 +236,15 @@ async fn asset(
     };
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
-    if matches!(
-        PathBuf::from(&relative_path)
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase()
-            .as_str(),
-        "html" | "htm"
-    ) {
+    // Vault HTML runs in an opaque-origin sandbox. Its ES modules and WASM
+    // files need CORS, but command APIs and unrelated vault files stay isolated.
+    if matches!(extension.as_str(), "js" | "mjs" | "wasm") {
+        headers.insert(
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            HeaderValue::from_static("*"),
+        );
+    }
+    if matches!(extension.as_str(), "html" | "htm") {
         // Keep vault HTML usable as a resource page while isolating its script
         // origin from the MindZJ app and its API, including when opened directly.
         headers.insert(
@@ -249,6 +253,70 @@ async fn asset(
                 "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
             ),
         );
+
+        if relative_path.eq_ignore_ascii_case("photocraft/index.html")
+            && query.get("mindzj_photocraft_bridge").is_some_and(|v| v == "1")
+        {
+            const PHOTOCRAFT_DROP_BRIDGE: &str = r#"<script>
+let mindzjPhotoCraftStarted = false;
+let mindzjPhotoCraftReady = false;
+let mindzjPhotoCraftPendingFile = null;
+let mindzjPhotoCraftReadyObserver = null;
+
+function mindzjDropPhotoCraftFile(file) {
+  const canvas = document.getElementById("photocraft_canvas");
+  if (!canvas || !file) return;
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  ["dragenter", "dragover", "drop"].forEach(function (type) {
+    canvas.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: transfer }));
+  });
+}
+
+window.addEventListener("TrunkApplicationStarted", function () {
+  mindzjPhotoCraftStarted = true;
+  mindzjPhotoCraftReadyObserver = new MutationObserver(function () {
+    if (!mindzjPhotoCraftStarted || document.getElementById("photocraft_loading")) return;
+    mindzjPhotoCraftReady = true;
+    mindzjPhotoCraftReadyObserver.disconnect();
+    if (mindzjPhotoCraftPendingFile) {
+      mindzjDropPhotoCraftFile(mindzjPhotoCraftPendingFile);
+      mindzjPhotoCraftPendingFile = null;
+    }
+  });
+  mindzjPhotoCraftReadyObserver.observe(document.body, { childList: true, subtree: true });
+  if (!document.getElementById("photocraft_loading")) {
+    mindzjPhotoCraftReadyObserver.takeRecords();
+    mindzjPhotoCraftReadyObserver.disconnect();
+    mindzjPhotoCraftReady = true;
+    if (mindzjPhotoCraftPendingFile) {
+      mindzjDropPhotoCraftFile(mindzjPhotoCraftPendingFile);
+      mindzjPhotoCraftPendingFile = null;
+    }
+  }
+}, { once: true });
+
+window.addEventListener("message", function (event) {
+  const payload = event.data;
+  if (event.source !== window.parent || !payload ||
+      payload.type !== "mindzj:photocraft-open-image" || !(payload.file instanceof Blob)) return;
+  try {
+    const file = new File([payload.file], payload.fileName || "image", { type: payload.file.type || "application/octet-stream" });
+    if (mindzjPhotoCraftReady) mindzjDropPhotoCraftFile(file);
+    else mindzjPhotoCraftPendingFile = file;
+  } catch (error) {
+    console.error("MindZJ could not open this image in PhotoCraft:", error);
+  }
+});
+</script>"#;
+            let html = String::from_utf8_lossy(&bytes);
+            let injected = if let Some((before, after)) = html.split_once("</body>") {
+                format!("{before}{PHOTOCRAFT_DROP_BRIDGE}</body>{after}")
+            } else {
+                format!("{html}{PHOTOCRAFT_DROP_BRIDGE}")
+            };
+            bytes = injected.into_bytes();
+        }
     }
     headers.insert(
         header::CACHE_CONTROL,

@@ -12,6 +12,7 @@ import { isMarkdownPath } from "../../utils/fileTypes";
 import { reorderVisibleNames } from "../../utils/fileOrder";
 import { remapMovedPath } from "../../utils/pathMove";
 import { toVaultAssetUrl } from "../../utils/vaultPaths";
+import { openImageInPhotoCraft } from "../../utils/photoCraft";
 import { t } from "../../i18n";
 
 type FolderVisibilityAction = "default" | "collapse" | "expand";
@@ -1216,12 +1217,19 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         const items: MenuItem[] = [];
         if (!isDir) {
             items.push({ label: t("context.open"), icon: "\uD83D\uDCC4", action: () => { void openFileRouted(path); } });
+            const extension = name.split(".").pop()?.toLowerCase() ?? "";
+            if (["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "avif"].includes(extension)) {
+                items.push({
+                    label: t("livePreview.openInPhotoCraft"),
+                    icon: "🎨",
+                    action: () => openImageInPhotoCraft(path),
+                });
+            }
             items.push({
                 label: t("context.copyUrl"),
                 icon: "🔗",
                 action: () => { void copyFileUrl(path); },
             });
-            const extension = name.split(".").pop()?.toLowerCase();
             if ((extension === "html" || extension === "htm") && isMarkdownPath(vaultStore.activeFile()?.path ?? "")) {
                 items.push({
                     label: t("context.insertHtmlEmbed"),

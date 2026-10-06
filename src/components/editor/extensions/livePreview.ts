@@ -34,6 +34,7 @@ import {
 } from "../../../utils/markdownInline";
 import { invoke } from "../../../backend";
 import { resolveImageAssetUrl, toVaultAssetUrl } from "../../../utils/vaultPaths";
+import { openImageInPhotoCraft } from "../../../utils/photoCraft";
 import {
     attachWheelZoom,
     attachCtrlClick,
@@ -172,6 +173,10 @@ function showImageContextMenu(
     addMenuItem(t("livePreview.copyImagePath"), () => {
         navigator.clipboard.writeText(imageSrc).catch(() => {});
     });
+
+    if (!/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(imageSrc)) {
+        addMenuItem(t("livePreview.openInPhotoCraft"), () => openImageInPhotoCraft(resolveImagePath()));
+    }
 
     // ── Open in default app ──
     addMenuItem(t("livePreview.openInDefaultApp"), () => {
