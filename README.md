@@ -1,55 +1,59 @@
 <h1 align="center">MindZJWeb</h1>
 
 <p align="center">
-  MindZJのMarkdown Vaultを、ブラウザから利用・編集するためのWeb版です。
+  MindZJ の Markdown Vault を、ブラウザーから閲覧・編集する Web 版です。
 </p>
 
-MindZJWebは既存のSolidJS UIとMindZJのRustカーネルをWebサーバー上で動かします。
-Vaultはサーバー上の通常のファイルとして保存され、Markdown、画像、PDF、音声、動画、
-スプレッドシートなどを同じVault内で管理できます。
+MindZJWeb には、サーバー上の Vault を複数の端末から利用する Web サーバー版と、
+GitHub Pages で動くブラウザーデモがあります。Web サーバー版では、Vault を通常の
+ファイルとしてサーバーに保存します。ブラウザーデモはサーバーを使わず、編集内容を
+利用者のブラウザー内に保存します。
+
+## GitHub Pages デモ
+
+[MindZJWeb を開く](https://oosawak.github.io/mindzjweb/web/)
+
+Pages 版では、サンプル Vault のノートやリソースを閲覧できます。ノートの作成・編集や
+設定は、アクセスしたブラウザーのローカルストレージに保存されます。公開中のサンプル
+ファイルは変更されず、別のブラウザーや端末とは共有されません。Rust サーバーは不要です。
 
 ## 主な機能
 
-- ブラウザからMarkdownを編集
-- Live Preview、Source、Readingの表示モード
-- Wikiリンク、検索、アウトライン、カレンダー
-- 画像、PDF、音声、動画、Officeファイルなどのリソース追加
-- `.xlsx`、`.xls`、`.ods`、`.csv`などのVault保存
-- 複数デバイスから同じサーバー上のVaultへアクセス
-- GitHub Pages向けのブラウザデモ
-
-## GitHub Pagesデモ
-
-<https://oosawak.github.io/mindzjweb/web/>
-
-Pages版はRustサーバーを必要としません。編集内容はブラウザのローカルストレージに
-保存され、公開Vaultのファイルは変更されません。
+- Markdown ノートの閲覧、編集、ソース表示
+- Wiki リンク、検索、アウトライン、カレンダー
+- 日報・議事録の作成と一覧表示
+- 画像、PDF、音声、動画、HTML、3D データなどのリソース管理
+- 画像の表示と PhotoCraft による編集
+- 音声・動画・3D データのプレビュー
+- 複数端末からサーバー上の同じ Vault を利用（Web サーバー版）
 
 ## 開発環境で起動
+
+Node.js 22 以上、Rust stable が必要です。
 
 ### 1. 依存関係をインストール
 
 ```bash
-npm install
+npm ci
 ```
 
-### 2. Web UIを起動
+### 2. Web UI を起動
 
 ```bash
 npm run dev -- --host 0.0.0.0
 ```
 
-開発用HTTPSで次のURLにアクセスします。
+開発用 HTTPS の URL は次のとおりです。
 
 - ローカル: <https://localhost:1430/>
-- 同一ネットワーク: `https://SERVER_IP:1430/`
+- 同じネットワーク上の端末: `https://SERVER_IP:1430/`
 
 自己署名証明書の警告が表示された場合は、開発環境として証明書を許可してください。
-画面共有など一部のブラウザAPIはHTTPSまたはlocalhostでのみ利用できます。
+スクリーンショットなど一部のブラウザー機能は HTTPS または localhost でのみ利用できます。
 
-### 3. Rust APIサーバーを起動
+### 3. Rust API サーバーを起動
 
-別ターミナルで実行します。
+別のターミナルで実行します。
 
 ```bash
 MINDZJ_BIND=0.0.0.0 \
@@ -58,34 +62,38 @@ MINDZJ_VAULT=/absolute/path/to/Vaults/test \
 cargo run -p mindzj --bin mindzj-server
 ```
 
-`MINDZJ_VAULT` を指定しない場合は、Web画面からサーバー上のVaultを選択できます。
+Web UI は `1430`、Rust API サーバーは `3000` で起動します。`MINDZJ_VAULT` を省略
+すると、Welcome 画面からサーバー上の Vault フォルダーを選択できます。
 
 ## 本番ビルド
 
 ```bash
-npm install
+npm ci
 npm run build:web
 ```
 
-本番環境ではRustのreleaseバイナリをsystemdなどで常時起動し、Nginxなどのリバース
-プロキシでHTTPSと認証を設定してください。
+Ubuntu で HTTPS、認証、systemd を設定して運用する手順は、[Web サーバーのデプロイ手順](docs/mindzjweb/WEB_SERVER_DEPLOYMENT_JA.md)を参照してください。
 
-詳細は次の資料を参照してください。
+## 関連資料
 
-- [Ubuntu / systemd / Nginxでのデプロイ手順](docs/mindzjweb/WEB_SERVER_DEPLOYMENT_JA.md)
-- [Google Group対応MindZJの企業利用検討資料](docs/mindzjweb/MINDZJ_GOOGLE_GROUP_BUSINESS_PROPOSAL_JA.md)
-- [MindZJWebの詳細仕様](docs/mindzjweb.md)
+- [MindZJ の日本語 README](docs/README_JA.md)
+- [MindZJWeb の詳細](docs/mindzjweb.md)
+- [Ubuntu サーバーへのデプロイ手順](docs/mindzjweb/WEB_SERVER_DEPLOYMENT_JA.md)
+- [Google Group 対応 MindZJ の企業利用検討資料](docs/mindzjweb/MINDZJ_GOOGLE_GROUP_BUSINESS_PROPOSAL_JA.md)
 
-## セキュリティ上の注意
+## セキュリティ
 
-MindZJWebサーバーは、構成によっては認証なしでVaultを読み書きできます。公開インター
-ネットへ直接公開せず、信頼できるネットワーク内で使用してください。本番環境では
-HTTPS、Basic認証またはGoogle OAuth、ファイアウォール、バックアップを設定してください。
-
-## 関連README
-
-デスクトップ版MindZJの説明は [MindZJ-README.md](MindZJ-README.md) を参照してください。
+Web サーバーは、設定によっては認証なしで Vault を読み書きできます。信頼できる
+ネットワーク内で使用し、公開インターネットへ直接公開しないでください。本番環境では
+HTTPS、認証、ファイアウォール、バックアップを設定してください。
 
 ## ライセンス
 
-AGPL-3.0-or-later
+MindZJWeb 本体は AGPL-3.0-or-later で提供しています（別途商用ライセンスを取得した場合を除きます）。
+Web サービスとして運用する場合も、AGPL の条件に従ってください。
+
+画像編集機能に同梱している PhotoCraft は、上流の MIT License または Apache-2.0 を選択して
+利用できる別コンポーネントです。MindZJWeb 本体のライセンスによって PhotoCraft のライセンスや
+著作権表示が置き換わることはありません。PhotoCraft の変更内容、ライセンス文書、NOTICE、
+第三者素材の帰属情報は [`public/photocraft/`](public/photocraft/) にあります。アプリ内の
+「ライセンス」画面からも確認できます。
