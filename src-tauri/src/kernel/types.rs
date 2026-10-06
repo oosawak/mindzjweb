@@ -216,6 +216,8 @@ pub struct AppSettings {
     pub editor_spell_check: bool,
     #[serde(default = "default_true")]
     pub editor_readable_line_length: bool,
+    #[serde(default)]
+    pub auto_save_enabled: bool,
     pub auto_save_interval_ms: u32,
     pub default_view_mode: ViewMode,
     pub locale: String,
@@ -370,8 +372,9 @@ impl Default for AppSettings {
             editor_word_wrap: true,
             editor_spell_check: false,
             editor_readable_line_length: true,
+            auto_save_enabled: false,
             auto_save_interval_ms: 2000,
-            default_view_mode: ViewMode::LivePreview,
+            default_view_mode: ViewMode::Reading,
             // Default UI language is English. When a user creates a
             // brand-new vault this is what gets written into its
             // `.mindzj/settings.json`. Must stay in sync with

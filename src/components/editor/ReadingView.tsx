@@ -40,6 +40,7 @@ import {
 import katex from "katex";
 import { resolveImageAssetUrl, toVaultAssetUrl } from "../../utils/vaultPaths";
 import { navigateWikiTarget } from "../../utils/wikiNavigation";
+import { requestViewModeChange } from "../../utils/editMode";
 import { showImageContextMenu } from "./extensions/livePreview";
 import {
     LIST_INDENT_EXTRA_PX,
@@ -1377,10 +1378,7 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 label: t("context.readingView"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode(
-                        "reading",
-                        currentFilePath ?? undefined,
-                    );
+                    if (currentFilePath) void requestViewModeChange(currentFilePath, "reading");
                 },
                 separator: true,
             },
@@ -1388,20 +1386,14 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 label: t("context.editMode"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode(
-                        "live-preview",
-                        currentFilePath ?? undefined,
-                    );
+                    if (currentFilePath) void requestViewModeChange(currentFilePath, "live-preview");
                 },
             },
             {
                 label: t("context.sourceMode"),
                 action: () => {
                     activatePane();
-                    editorStore.setViewMode(
-                        "source",
-                        currentFilePath ?? undefined,
-                    );
+                    if (currentFilePath) void requestViewModeChange(currentFilePath, "source");
                 },
             },
         ];

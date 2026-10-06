@@ -15,6 +15,7 @@ import { settingsStore } from "../../stores/settings";
 import { vaultStore } from "../../stores/vault";
 import { getMarkerPalette } from "./markerColors";
 import { ImagePicker } from "./ImagePicker";
+import { requestViewModeChange } from "../../utils/editMode";
 
 interface ToolbarButton {
   command: string;
@@ -143,30 +144,14 @@ export const Toolbar: Component = () => {
 
   const currentViewMode = () =>
     editorStore.getViewModeForFile(vaultStore.activeFile()?.path ?? null);
-  const cycleToolbarViewMode = () => {
-    // Force-flush any pending CM6 edits to disk BEFORE switching
-    // mode. Ctrl+S and the "close tab" handler use this same
-    // `mindzj:force-save` event to guarantee the on-disk content
-    // matches the in-memory buffer. Without this step, clicking
-    // the mode button right after typing (during the 2-second
-    // auto-save debounce window) would swap to reading / live-
-    // preview with the LAST-SAVED content and silently drop the
-    // unsaved edits — the user would see their changes "revert"
-    // which is both confusing and data-lossy. The listener in
-    // Editor.tsx calls `saveFileNow()` synchronously so this is
-    // an immediate, not deferred, save.
-    document.dispatchEvent(new CustomEvent("mindzj:force-save"));
-    editorStore.cycleViewMode(vaultStore.activeFile()?.path ?? undefined);
+  const activePath = () => vaultStore.activeFile()?.path ?? null;
+  const selectMode = (mode: "reading" | "live-preview" | "source") => {
+    const path = activePath();
+    if (path) void requestViewModeChange(path, mode);
   };
-  const viewModeLabel = () => {
-    switch (currentViewMode()) {
-      case "source":
-        return t("context.sourceMode");
-      case "reading":
-        return t("context.readingView");
-      default:
-        return t("context.editMode");
-    }
+  const saveCurrent = () => {
+    const path = activePath();
+    if (path) void editorStore.savePendingManually(path);
   };
 
   const headingItems = createMemo(() =>
@@ -369,35 +354,26 @@ export const Toolbar: Component = () => {
           </button>
         </Show>
 
-        <button
-          onClick={cycleToolbarViewMode}
-          title={t("toolbar.cycleViewMode")}
+        <For each={[
+          ["reading", t("context.readingView")],
+          ["live-preview", t("context.editMode")],
+          ["source", t("context.sourceMode")],
+        ] as const}>{([mode, label]) => <button
+          onClick={() => selectMode(mode)}
+          title={label}
+          aria-pressed={currentViewMode() === mode}
           style={{
-            display: "flex",
-            "align-items": "center",
-            gap: "4px",
-            padding: "4px 10px",
-            border: "1px solid var(--mz-border)",
-            background: "transparent",
-            color: "var(--mz-text-secondary)",
-            cursor: "pointer",
-            "border-radius": "var(--mz-radius-md)",
-            "font-size": "var(--mz-font-size-xs)",
-            "font-family": "var(--mz-font-sans)",
-            "font-weight": "500",
+            padding: "4px 7px", border: "1px solid var(--mz-border)",
+            background: currentViewMode() === mode ? "var(--mz-bg-active)" : "transparent",
+            color: currentViewMode() === mode ? "var(--mz-accent)" : "var(--mz-text-secondary)",
+            cursor: "pointer", "border-radius": "var(--mz-radius-md)",
+            "font-size": "var(--mz-font-size-xs)", "font-family": "var(--mz-font-sans)",
             "flex-shrink": "0",
           }}
-          onMouseEnter={(event) => {
-            event.currentTarget.style.borderColor = "var(--mz-accent)";
-            event.currentTarget.style.color = "var(--mz-accent)";
-          }}
-          onMouseLeave={(event) => {
-            event.currentTarget.style.borderColor = "var(--mz-border)";
-            event.currentTarget.style.color = "var(--mz-text-secondary)";
-          }}
-        >
-          {viewModeLabel()}
-        </button>
+        >{label}</button>}</For>
+        <Show when={activePath() && currentViewMode() !== "reading" && editorStore.isDirtyPath(activePath()!)}>
+          <button onClick={saveCurrent} title={t("common.save")} style={iconButtonStyle}>{t("common.save")}</button>
+        </Show>
       </div>
 
       <Show when={showHeadingMenu()}>

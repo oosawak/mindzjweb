@@ -113,6 +113,7 @@ import {
     normalizeVaultRelativePath,
 } from "../../utils/vaultPaths";
 import { t } from "../../i18n";
+import { requestViewModeChange } from "../../utils/editMode";
 import { normalizePastedOrderedLists } from "../../utils/pasteMarkdown";
 
 interface EditorProps {
@@ -2040,18 +2041,8 @@ export const Editor: Component<EditorProps> = (props) => {
             return;
         }
 
-        // The mode switch replaces this Editor component. Persist the current
-        // document first so Reading view (or the rebuilt source/edit view)
-        // receives the latest text instead of the last debounced save.
         rememberEditorViewport(view);
-        const content = view.state.doc.toString();
-        const savedContent = resolvedFile()?.content ?? "";
-        if (editorStore.isDirtyPath(path) || content !== savedContent) {
-            await editorStore.forceSave(path, content, {
-                suppressSavedEvent: true,
-            });
-        }
-        editorStore.setViewMode(mode, path);
+        await requestViewModeChange(path, mode);
     }
 
     function buildEditorContextMenu(view: EditorView): MenuItem[] {
@@ -2600,18 +2591,9 @@ export const Editor: Component<EditorProps> = (props) => {
 
             event.preventDefault();
             const release = detail?.release;
-            const content = editorView.state.doc.toString();
             try {
-                const savedContent = resolvedFile()?.content ?? "";
-                if (
-                    editorStore.isDirtyPath(currentFilePath) ||
-                    content !== savedContent
-                ) {
-                    await editorStore.forceSave(currentFilePath, content, {
-                        suppressSavedEvent: true,
-                    });
-                }
-                editorStore.toggleReadingMode(currentFilePath);
+                const nextMode = editorStore.getViewModeForFile(currentFilePath) === "reading" ? "live-preview" : "reading";
+                await requestViewModeChange(currentFilePath, nextMode);
             } catch (error) {
                 console.error("Toggle view mode save failed:", error);
             } finally {

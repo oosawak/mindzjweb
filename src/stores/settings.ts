@@ -132,6 +132,7 @@ export interface AppSettings {
     editor_word_wrap: boolean;
     editor_spell_check: boolean;
     editor_readable_line_length: boolean;
+    auto_save_enabled: boolean;
     auto_save_interval_ms: number;
     default_view_mode: string;
     locale: string;
@@ -236,8 +237,9 @@ const DEFAULT_SETTINGS: AppSettings = {
     editor_word_wrap: true,
     editor_spell_check: false,
     editor_readable_line_length: true,
+    auto_save_enabled: false,
     auto_save_interval_ms: 2000,
-    default_view_mode: "LivePreview",
+    default_view_mode: "Reading",
     // Default UI language is Japanese. Users can switch language from the
     // welcome screen (saved to localStorage under "mindzj-pending-locale")
     // or from Settings → Appearance once a vault is open.

@@ -12,15 +12,26 @@ use mindzj_lib::kernel::{
     AppState,
 };
 use serde_json::{json, Value};
-use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, path::PathBuf, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use tower_http::services::ServeDir;
+use uuid::Uuid;
 
 const WEB_CLIENT: &str = "mindzj-web";
 
 #[derive(Clone)]
 struct ServerState {
     kernel: Arc<AppState>,
+    edit_leases: Arc<Mutex<HashMap<String, EditLease>>>,
 }
+
+struct EditLease {
+    client_id: String,
+    owner_name: String,
+    token: String,
+    expires_at: Instant,
+}
+
+const EDIT_LEASE_TTL: Duration = Duration::from_secs(45);
 
 #[derive(Debug)]
 struct ApiError {
@@ -104,6 +115,47 @@ fn context(state: &ServerState) -> Result<Arc<mindzj_lib::kernel::VaultContext>,
             code: "NO_VAULT",
             message: e.message,
         })
+}
+
+fn edit_lock_key(state: &ServerState, relative_path: &str) -> Result<String, ApiError> {
+    let ctx = context(state)?;
+    Ok(format!("{}\0{}", ctx.vault.root().display(), relative_path.replace('\\', "/")))
+}
+
+fn verify_edit_lease<'a>(
+    state: &'a ServerState,
+    args: &Value,
+    relative_path: &str,
+) -> Result<Option<std::sync::MutexGuard<'a, HashMap<String, EditLease>>>, ApiError> {
+    let extension = PathBuf::from(relative_path)
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if !matches!(extension.as_str(), "md" | "markdown" | "mdx") {
+        return Ok(None);
+    }
+
+    let key = edit_lock_key(state, relative_path)?;
+    let client_id = optional_string(args, "clientId").unwrap_or_default();
+    let token = optional_string(args, "editLockToken").unwrap_or_default();
+    let mut leases = state.edit_leases.lock().map_err(|_| ApiError::bad_request("Edit lock state unavailable"))?;
+    if leases.get(&key).is_some_and(|lease| lease.expires_at <= Instant::now()) {
+        leases.remove(&key);
+    }
+    match leases.get(&key) {
+        Some(lease) if lease.client_id == client_id && lease.token == token => Ok(Some(leases)),
+        Some(lease) => Err(ApiError {
+            status: StatusCode::LOCKED,
+            code: "FILE_LOCKED",
+            message: format!("This file is being edited by {}", lease.owner_name),
+        }),
+        None => Err(ApiError {
+            status: StatusCode::LOCKED,
+            code: "EDIT_LOCK_REQUIRED",
+            message: "Acquire the edit lock before saving this file".into(),
+        }),
+    }
 }
 
 async fn health() -> Json<Value> {
@@ -211,6 +263,66 @@ async fn command(
     Json(args): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
     let result = match name.as_str() {
+        "acquire_edit_lock" => {
+            let relative_path = string_arg(&args, "relativePath")?;
+            let client_id = string_arg(&args, "clientId")?;
+            let owner_name = optional_string(&args, "ownerName").unwrap_or_else(|| "MindZJ user".into());
+            let force = args.get("force").and_then(Value::as_bool).unwrap_or(false);
+            let key = edit_lock_key(&state, &relative_path)?;
+            let mut leases = state.edit_leases.lock().map_err(|_| ApiError::bad_request("Edit lock state unavailable"))?;
+            if leases.get(&key).is_some_and(|lease| lease.expires_at <= Instant::now()) {
+                leases.remove(&key);
+            }
+            let existing = leases.get(&key).map(|lease| (
+                lease.client_id.clone(), lease.owner_name.clone(), lease.token.clone(), lease.expires_at,
+            ));
+            if let Some((current_client, current_name, current_token, expires_at)) = existing {
+                if current_client == client_id {
+                    if let Some(lease) = leases.get_mut(&key) {
+                        lease.expires_at = Instant::now() + EDIT_LEASE_TTL;
+                    }
+                    json!({ "acquired": true, "ownerName": current_name, "token": current_token, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
+                } else if force {
+                    let token = Uuid::new_v4().to_string();
+                    leases.insert(key, EditLease { client_id, owner_name: owner_name.clone(), token: token.clone(), expires_at: Instant::now() + EDIT_LEASE_TTL });
+                    json!({ "acquired": true, "ownerName": owner_name, "token": token, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
+                } else {
+                    json!({ "acquired": false, "ownerName": current_name, "expiresInSeconds": expires_at.saturating_duration_since(Instant::now()).as_secs() })
+                }
+            } else {
+                let token = Uuid::new_v4().to_string();
+                leases.insert(key, EditLease { client_id, owner_name: owner_name.clone(), token: token.clone(), expires_at: Instant::now() + EDIT_LEASE_TTL });
+                json!({ "acquired": true, "ownerName": owner_name, "token": token, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
+            }
+        }
+        "renew_edit_lock" => {
+            let relative_path = string_arg(&args, "relativePath")?;
+            let client_id = string_arg(&args, "clientId")?;
+            let token = string_arg(&args, "token")?;
+            let key = edit_lock_key(&state, &relative_path)?;
+            let mut leases = state.edit_leases.lock().map_err(|_| ApiError::bad_request("Edit lock state unavailable"))?;
+            if leases.get(&key).is_some_and(|lease| lease.expires_at <= Instant::now()) {
+                leases.remove(&key);
+            }
+            match leases.get_mut(&key) {
+                Some(lease) if lease.client_id == client_id && lease.token == token => {
+                    lease.expires_at = Instant::now() + EDIT_LEASE_TTL;
+                    json!({ "acquired": true, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
+                }
+                _ => json!({ "acquired": false }),
+            }
+        }
+        "release_edit_lock" => {
+            let relative_path = string_arg(&args, "relativePath")?;
+            let client_id = string_arg(&args, "clientId")?;
+            let token = string_arg(&args, "token")?;
+            let key = edit_lock_key(&state, &relative_path)?;
+            let mut leases = state.edit_leases.lock().map_err(|_| ApiError::bad_request("Edit lock state unavailable"))?;
+            if leases.get(&key).is_some_and(|lease| lease.client_id == client_id && lease.token == token) {
+                leases.remove(&key);
+            }
+            Value::Null
+        }
         "open_vault" => {
             let path = PathBuf::from(string_arg(&args, "path")?);
             let name = string_arg(&args, "name")?;
@@ -252,6 +364,7 @@ async fn command(
         "write_file" => {
             let path = string_arg(&args, "relativePath")?;
             let content = string_arg(&args, "content")?;
+            let _edit_lease = verify_edit_lease(&state, &args, &path)?;
             let ctx = context(&state)?;
             let file = ctx
                 .vault
@@ -507,7 +620,10 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    let state = ServerState { kernel };
+    let state = ServerState {
+        kernel,
+        edit_leases: Arc::new(Mutex::new(HashMap::new())),
+    };
     let api = Router::new()
         .route("/health", get(health))
         .route("/vaults", get(list_vaults))

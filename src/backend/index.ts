@@ -1,5 +1,6 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { PagesDemoBackend, pagesDemoAssetUrl } from "./pagesDemo";
+import { getBrowserClientId, getEditLockToken } from "./clientIdentity";
 
 const pagesDemo = import.meta.env.VITE_PAGES_DEMO === "true";
 const pagesBackend = new PagesDemoBackend();
@@ -30,7 +31,13 @@ class WebBackend implements MindZjBackend {
     const response = await fetch(`/api/commands/${encodeURIComponent(command)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(args ?? {}),
+      body: JSON.stringify({
+        ...(args ?? {}),
+        clientId: getBrowserClientId(),
+        ...(command === "write_file" && typeof args?.relativePath === "string"
+          ? { editLockToken: getEditLockToken(args.relativePath) }
+          : {}),
+      }),
     });
 
     if (!response.ok) {

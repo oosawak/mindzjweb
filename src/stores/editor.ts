@@ -26,7 +26,7 @@ export interface EditorWorkspaceState {
 }
 
 function createEditorStore() {
-  const [fallbackViewMode, setFallbackViewMode] = createSignal<ViewMode>("live-preview");
+  const [fallbackViewMode, setFallbackViewMode] = createSignal<ViewMode>("reading");
   const [fallbackLastNonReadingViewMode, setFallbackLastNonReadingViewMode] =
     createSignal<EditableViewMode>("live-preview");
   const [wordCount, setWordCount] = createSignal(0);
@@ -293,15 +293,20 @@ function createEditorStore() {
       return;
     }
 
+    if (!settingsStore.settings().auto_save_enabled) {
+      saveTimers.delete(relativePath);
+      return;
+    }
+
     const t = setTimeout(async () => {
       saveTimers.delete(relativePath);
-      pendingSaveContent.delete(relativePath);
       const savePromise = (async () => {
         const saved = await vaultStore.saveFile(relativePath, content, {
           updateState: false,
         });
         const newerPending = pendingSaveContent.get(relativePath);
         if (newerPending == null || newerPending === content) {
+          pendingSaveContent.delete(relativePath);
           vaultStore.applySavedFileContent(saved);
           clearDirty(relativePath);
           // After a successful save, check if any headings were renamed
@@ -313,6 +318,12 @@ function createEditorStore() {
       try {
         await savePromise;
       } catch (e) {
+        // Preserve the latest buffer when a server-side lock rejects a
+        // background save. The user can still copy it or save after reclaiming.
+        if (!pendingSaveContent.has(relativePath)) {
+          pendingSaveContent.set(relativePath, content);
+        }
+        markDirty(relativePath);
         console.error("Auto-save failed:", e);
       } finally {
         if (inFlightSaves.get(relativePath) === savePromise) {
@@ -361,21 +372,32 @@ function createEditorStore() {
       clearTimeout(existing);
       saveTimers.delete(relativePath);
     }
-    pendingSaveContent.delete(relativePath);
+    const pending = pendingSaveContent.get(relativePath);
+    if (pending === content) pendingSaveContent.delete(relativePath);
     try {
       await inFlightSaves.get(relativePath);
       await vaultStore.saveFile(relativePath, content, {
         suppressSavedEvent: options?.suppressSavedEvent,
       });
-      clearDirty(relativePath);
+      const newer = pendingSaveContent.get(relativePath);
+      if (newer == null) clearDirty(relativePath);
+      else if (settingsStore.settings().auto_save_enabled) scheduleAutoSave(relativePath, newer);
     } catch (e) {
       console.error("Force save failed:", e);
       throw e;
     }
   }
 
+  async function savePendingManually(relativePath: string): Promise<void> {
+    const pending = pendingSaveContent.get(relativePath);
+    const open = vaultStore.openFiles().find((file) => file.path === relativePath);
+    if (pending == null && !open) return;
+    await forceSave(relativePath, pending ?? open!.content);
+  }
+
   /** Save one tab's latest debounced content and wait for the disk write. */
   async function flushPendingSave(relativePath: string): Promise<void> {
+    if (!settingsStore.settings().auto_save_enabled) return;
     const content = pendingSaveContent.get(relativePath);
     const timer = saveTimers.get(relativePath);
     if (timer) {
@@ -426,6 +448,7 @@ function createEditorStore() {
    * 10 tabs than lose all 10 because one write errored.
    */
   async function flushAllPendingSaves(): Promise<void> {
+    if (!settingsStore.settings().auto_save_enabled) return;
     const entries = Array.from(pendingSaveContent.entries());
     if (entries.length === 0) return;
 
@@ -597,7 +620,9 @@ function createEditorStore() {
   function restoreWorkspaceState(state?: EditorWorkspaceState | null) {
     setFileScrollPositions({ ...(state?.file_scroll_positions ?? {}) });
     setFileTopLines({ ...(state?.file_top_lines ?? {}) });
-    setFileViewModes({ ...(state?.file_view_modes ?? {}) });
+    // Workspace state from older versions may remember an editor mode.
+    // Opening files now starts safely in read-only mode; users opt in to edit.
+    setFileViewModes(Object.fromEntries(Object.keys(state?.file_view_modes ?? {}).map((path) => [path, "reading" as ViewMode])));
     setFileLastNonReadingViewModes({
       ...(state?.file_last_non_reading_view_modes ?? {}),
     });
@@ -610,10 +635,21 @@ function createEditorStore() {
     setFileViewModes({});
     setFileLastNonReadingViewModes({});
     setLastScrollLine(null);
-    setFallbackViewMode("live-preview");
+    setFallbackViewMode("reading");
     setFallbackLastNonReadingViewMode("live-preview");
     _fileHistoryStates.clear();
     _pendingExternalEdits.clear();
+  }
+
+  function setAutoSaveEnabled(enabled: boolean) {
+    if (!enabled) {
+      for (const timer of saveTimers.values()) clearTimeout(timer);
+      saveTimers.clear();
+      return;
+    }
+    for (const [path, content] of pendingSaveContent) {
+      scheduleAutoSave(path, content);
+    }
   }
 
   function renameFileState(oldPath: string, newPath: string) {
@@ -787,6 +823,7 @@ function createEditorStore() {
     // Actions
     setViewMode,
     setDefaultViewMode,
+    setAutoSaveEnabled,
     setCursorLine,
     setCursorCol,
     setLastScrollLine,
@@ -809,6 +846,7 @@ function createEditorStore() {
     cancelAutoSave,
     storeHeadings,
     forceSave,
+    savePendingManually,
     flushPendingSave,
     flushAllPendingSaves,
     updateStats,

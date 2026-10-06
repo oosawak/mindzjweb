@@ -14,6 +14,7 @@ import {
     onCleanup,
 } from "solid-js";
 import { invoke } from "../../backend";
+import { editorStore } from "../../stores/editor";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { Eye, EyeOff } from "lucide-solid";
 import {
@@ -1067,28 +1068,34 @@ export const SettingsModal: Component<SettingsModalProps> = (props) => {
                         </SettingSection>
 
                         <SettingSection title={t("settings.saveSection")}>
-                            <SettingInput
-                                label={t("settings.autoSaveInterval")}
-                                description={t(
-                                    "settings.autoSaveIntervalDescription",
-                                )}
-                                value={s().auto_save_interval_ms}
-                                type="text"
-                                inputMode="numeric"
-                                min={500}
-                                max={30000}
-                                commitOnBlur
-                                onChange={(v) => {
-                                    const trimmed = v.trim();
-                                    if (!trimmed) return;
-                                    const parsed = Number.parseInt(trimmed, 10);
-                                    if (!Number.isFinite(parsed)) return;
-                                    set(
-                                        "auto_save_interval_ms",
-                                        Math.max(500, Math.min(30000, parsed)),
-                                    );
+                            <SettingToggle
+                                label={t("settings.autoSaveEnabled")}
+                                description={t("settings.autoSaveEnabledDescription")}
+                                value={s().auto_save_enabled}
+                                onChange={(value) => {
+                                    void set("auto_save_enabled", value);
+                                    editorStore.setAutoSaveEnabled(value);
                                 }}
                             />
+                            <Show when={s().auto_save_enabled}>
+                                <SettingInput
+                                    label={t("settings.autoSaveInterval")}
+                                    description={t("settings.autoSaveIntervalDescription")}
+                                    value={s().auto_save_interval_ms}
+                                    type="text"
+                                    inputMode="numeric"
+                                    min={500}
+                                    max={30000}
+                                    commitOnBlur
+                                    onChange={(v) => {
+                                        const trimmed = v.trim();
+                                        if (!trimmed) return;
+                                        const parsed = Number.parseInt(trimmed, 10);
+                                        if (!Number.isFinite(parsed)) return;
+                                        set("auto_save_interval_ms", Math.max(500, Math.min(30000, parsed)));
+                                    }}
+                                />
+                            </Show>
                             <SettingSelect
                                 label={t("settings.defaultViewMode")}
                                 description={t(

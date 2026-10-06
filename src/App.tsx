@@ -80,6 +80,8 @@ import { Copy, History, Mic, MicOff, Trash2, Volume2, X } from "lucide-solid";
 import { ScreenshotOverlay } from "./components/screenshot/ScreenshotOverlay";
 import { promptDialog } from "./components/common/ConfirmDialog";
 import { openFileRouted } from "./utils/openFileRouted";
+import { requestViewModeChange, saveDraftBeforeLeaving } from "./utils/editMode";
+import { editLockStore } from "./stores/editLock";
 import { displayName } from "./utils/displayName";
 import {
     openSearchPanel,
@@ -1050,12 +1052,7 @@ const App: Component = () => {
         const request = ++tabSelectRequest;
         const currentPath = activePanePath() ?? vaultStore.activeFile()?.path;
         if (currentPath && currentPath !== path && editorStore.isDirtyPath(currentPath)) {
-            try {
-                await editorStore.flushPendingSave(currentPath);
-            } catch (error) {
-                console.error("[Tab] Failed to save before switching:", error);
-                return;
-            }
+            if (!(await saveDraftBeforeLeaving(currentPath))) return;
         }
         if (request !== tabSelectRequest) return;
         document.dispatchEvent(
@@ -1115,7 +1112,9 @@ const App: Component = () => {
         return true;
     }
 
-    function handleTabClose(path: string) {
+    async function handleTabClose(path: string) {
+        if (!(await saveDraftBeforeLeaving(path))) return;
+        await editLockStore.release(path);
         // Snapshot the open files BEFORE closing so we can compute
         // which tab to focus next based on the closed tab's position.
         const openFilesBefore = vaultStore.openFiles();
@@ -2309,42 +2308,17 @@ const App: Component = () => {
     // reads + mode-rebuilds. One-in-flight at a time keeps the sequence
     // sane even if the user mashes the key.
     let toggleViewModePending = false;
-    function toggleViewModeWithSave(path: string | null | undefined) {
+    async function toggleViewModeWithSave(path: string | null | undefined) {
         if (toggleViewModePending) return;
         toggleViewModePending = true;
         const release = () => {
             toggleViewModePending = false;
         };
-        try {
-            const resolvedPath = path ?? null;
-            const currentMode = editorStore.getViewModeForFile(resolvedPath);
-            if (currentMode === "reading") {
-                editorStore.toggleReadingMode(resolvedPath ?? undefined);
-                queueMicrotask(release);
-                return;
-            }
-
-            const event = new CustomEvent("mindzj:toggle-view-mode-with-save", {
-                cancelable: true,
-                detail: { path: resolvedPath, release },
-            });
-            const handled = !document.dispatchEvent(event);
-            if (!handled) {
-                editorStore.toggleReadingMode(resolvedPath ?? undefined);
-                queueMicrotask(release);
-            }
-            // If handled, the Editor's async save promise will call
-            // release() when it settles (success or failure). Fallback
-            // timeout guards against a handler that never calls back.
-            if (handled) {
-                setTimeout(() => {
-                    if (toggleViewModePending) toggleViewModePending = false;
-                }, 3000);
-            }
-        } catch (err) {
-            toggleViewModePending = false;
-            throw err;
-        }
+        const resolvedPath = path ?? vaultStore.activeFile()?.path;
+        if (!resolvedPath) { release(); return; }
+        const currentMode = editorStore.getViewModeForFile(resolvedPath);
+        const nextMode = currentMode === "reading" ? "live-preview" : "reading";
+        void requestViewModeChange(resolvedPath, nextMode).finally(release);
     }
 
     function getTabSwitchDirectionFromEvent(
@@ -4365,9 +4339,9 @@ const App: Component = () => {
                                         activeFile={vaultStore.activeFile()}
                                         onSelect={handleTabSelect}
                                         onClose={handleTabClose}
-                                        onSetViewMode={(path, mode) =>
-                                            editorStore.setViewMode(mode, path)
-                                        }
+                                        onSetViewMode={(path, mode) => {
+                                            void requestViewModeChange(path, mode);
+                                        }}
                                         onOpenSplit={handleOpenSplitInPane}
                                         onExportPdf={(path) =>
                                             void exportMarkdownPathToPdf(path)
