@@ -1489,10 +1489,16 @@ const App: Component = () => {
         window.addEventListener("keydown", handleTabSwitchKeydown, true);
         document.addEventListener("keydown", handleGlobalKeydown, true);
         document.addEventListener("keyup", handleGlobalKeyup, true);
+        const handleShowToast = (event: Event) => {
+            const message = (event as CustomEvent<string>).detail;
+            if (message) showShortcutToast(message);
+        };
+        document.addEventListener("mindzj:show-toast", handleShowToast);
         onCleanup(() => {
             window.removeEventListener("keydown", handleTabSwitchKeydown, true);
             document.removeEventListener("keydown", handleGlobalKeydown, true);
             document.removeEventListener("keyup", handleGlobalKeyup, true);
+            document.removeEventListener("mindzj:show-toast", handleShowToast);
         });
 
         // Disable the native browser/webview context menu globally so that
@@ -1961,6 +1967,29 @@ const App: Component = () => {
                 if (info) {
                     workspaceRestoreInProgress = true;
                     const loadedSettings = await settingsStore.loadSettings();
+                    // Earlier releases shipped with LivePreview as the default,
+                    // and that value may already be persisted in each vault.
+                    // Migrate it once so existing installs also start in Reading.
+                    let savedDefaultViewMode = loadedSettings.default_view_mode;
+                    const defaultViewMigrationKey = `mindzj-reading-default-v1:${info.path}`;
+                    try {
+                        if (!localStorage.getItem(defaultViewMigrationKey)) {
+                            if (
+                                savedDefaultViewMode === "LivePreview" ||
+                                savedDefaultViewMode === "live-preview"
+                            ) {
+                                await settingsStore.updateSetting(
+                                    "default_view_mode",
+                                    "Reading",
+                                );
+                                savedDefaultViewMode = "Reading";
+                            }
+                            localStorage.setItem(defaultViewMigrationKey, "1");
+                        }
+                    } catch (error) {
+                        console.warn("Could not migrate the default view mode:", error);
+                        savedDefaultViewMode = "Reading";
+                    }
                     // If the user picked a language on the welcome screen before
                     // this vault existed, apply it now so the new vault's
                     // settings.json persists the right locale. This is a
@@ -1992,7 +2021,7 @@ const App: Component = () => {
                         isViewMode(startupViewMode)
                             ? startupViewMode
                             : resolveDefaultViewMode(
-                                  loadedSettings.default_view_mode,
+                                  savedDefaultViewMode,
                               ),
                     );
                     if (!isTransientWindow()) {
@@ -4442,8 +4471,11 @@ const App: Component = () => {
                                 }>
                                 <Show
                                     when={
-                                        settingsStore.settings()
-                                            .show_markdown_toolbar &&
+                                        (settingsStore.settings()
+                                            .show_markdown_toolbar ||
+                                            editorStore.getViewModeForFile(
+                                                vaultStore.activeFile()?.path ?? null,
+                                            ) !== "reading") &&
                                         !hasPluginViewForExtension(
                                             (
                                                 vaultStore.activeFile()?.path ??

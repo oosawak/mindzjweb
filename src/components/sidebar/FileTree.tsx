@@ -1109,6 +1109,25 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         }
     }
 
+    async function copyFileUrl(path: string) {
+        const url = new URL(window.location.href);
+        const vault = vaultStore.vaultInfo();
+        url.searchParams.delete("view_mode");
+        url.searchParams.delete("split");
+        url.searchParams.delete("image_viewer");
+        url.searchParams.set("file_path", path);
+        if (vault?.path) url.searchParams.set("vault_path", vault.path);
+        if (vault?.name) url.searchParams.set("vault_name", vault.name);
+        try {
+            await navigator.clipboard.writeText(url.toString());
+            document.dispatchEvent(new CustomEvent("mindzj:show-toast", {
+                detail: t("common.copyDone"),
+            }));
+        } catch {
+            window.prompt(t("context.copyUrl"), url.toString());
+        }
+    }
+
     function addResourcesTo(dirPath: string) {
         setResourceTargetDir(dirPath);
         if (resourceInput) {
@@ -1197,6 +1216,11 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         const items: MenuItem[] = [];
         if (!isDir) {
             items.push({ label: t("context.open"), icon: "\uD83D\uDCC4", action: () => { void openFileRouted(path); } });
+            items.push({
+                label: t("context.copyUrl"),
+                icon: "🔗",
+                action: () => { void copyFileUrl(path); },
+            });
             const extension = name.split(".").pop()?.toLowerCase();
             if ((extension === "html" || extension === "htm") && isMarkdownPath(vaultStore.activeFile()?.path ?? "")) {
                 items.push({

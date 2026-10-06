@@ -114,6 +114,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "filePreview.modelError": { "zh-CN": "无法预览此 GLB/GLTF 模型。", en: "Could not preview this GLB/GLTF model.", ja: "この GLB/GLTF モデルをプレビューできません。", fr: "Impossible d’afficher ce modèle GLB/GLTF.", de: "Dieses GLB/GLTF-Modell kann nicht angezeigt werden.", es: "No se pudo previsualizar este modelo GLB/GLTF." },
   "context.newMindMap": { "zh-CN": "新建 MindZJ 图谱", en: "New MindZJ map", ja: "新しい MindZJ マップ", fr: "Nouvelle carte MindZJ", de: "Neue MindZJ-Map", es: "Nuevo mapa de MindZJ" },
   "context.copyPath": { "zh-CN": "复制路径", en: "Copy path", ja: "パスをコピー", fr: "Copier le chemin", de: "Pfad kopieren", es: "Copiar ruta" },
+  "context.copyUrl": { "zh-CN": "复制链接 URL", en: "Copy link URL", ja: "URLをコピー", fr: "Copier l’URL du lien", de: "Link-URL kopieren", es: "Copiar URL del enlace" },
   "context.cut": { "zh-CN": "剪切", en: "Cut", ja: "切り取り", fr: "Couper", de: "Ausschneiden", es: "Cortar" },
   "context.paste": { "zh-CN": "粘贴", en: "Paste", ja: "貼り付け", fr: "Coller", de: "Einfügen", es: "Pegar" },
   "context.pastePlainText": { "zh-CN": "粘贴纯文本", en: "Paste plain text", ja: "プレーンテキストで貼り付け", fr: "Coller en texte brut", de: "Als Nur-Text einfügen", es: "Pegar texto sin formato" },

@@ -354,6 +354,30 @@ export const Toolbar: Component = () => {
           </button>
         </Show>
 
+        <Show when={activePath() && currentViewMode() !== "reading"}>
+          <button
+            onClick={saveCurrent}
+            title={t("common.save")}
+            style={{
+              ...iconButtonStyle,
+              width: "auto",
+              padding: "0 9px",
+              border: "1px solid var(--mz-border)",
+              "border-radius": "var(--mz-radius-md)",
+              "font-size": "var(--mz-font-size-xs)",
+              "font-family": "var(--mz-font-sans)",
+              "white-space": "nowrap",
+              "writing-mode": "horizontal-tb",
+              "word-break": "keep-all",
+              "min-width": "max-content",
+              "margin-right": "6px",
+            }}
+          >
+            <span style={{ "white-space": "nowrap", "writing-mode": "horizontal-tb" }}>
+              {t("common.save")}
+            </span>
+          </button>
+        </Show>
         <For each={[
           ["reading", t("context.readingView")],
           ["live-preview", t("context.editMode")],
@@ -371,9 +395,6 @@ export const Toolbar: Component = () => {
             "flex-shrink": "0",
           }}
         >{label}</button>}</For>
-        <Show when={activePath() && currentViewMode() !== "reading" && editorStore.isDirtyPath(activePath()!)}>
-          <button onClick={saveCurrent} title={t("common.save")} style={iconButtonStyle}>{t("common.save")}</button>
-        </Show>
       </div>
 
       <Show when={showHeadingMenu()}>
