@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Animal Doku</title>
+<link rel="stylesheet" href="../../engine.css">
+<style>
+:root {
+  --bg: #f6efe8;
+  --bg-accent: #f3d6dc;
+  --panel: rgba(255, 255, 255, 0.72);
+  --panel-border: rgba(169, 127, 119, 0.18);
+  --text: #5e4039;
+  --muted: rgba(94, 64, 57, 0.62);
+  --pink: #f27ca4;
+  --green: #a7d8a0;
+  --amber: #ffbf54;
+  --blue: #9dc4f2;
+  --purple: #c4aff3;
+  --good: #59a86f;
+  --bad: #d35d66;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; min-height: 100%; margin: 0; }
+body {
+  font-family: var(--engine-font, "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif);
+  color: var(--text);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.78), transparent 20%),
+    radial-gradient(circle at 82% 16%, rgba(255, 226, 175, 0.42), transparent 18%),
+    radial-gradient(circle at 50% 100%, rgba(107, 174, 255, 0.20), transparent 34%),
+    linear-gradient(180deg, #fbf7f2 0%, #f7efe7 45%, #f4e6e3 100%);
+  overflow: hidden;
+}
+main {
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
+  gap: 10px;
+  padding: 16px 14px 12px;
+}
+.shell {
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto;
+}
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.72);
+  color: var(--text);
+  box-shadow: 0 8px 18px rgba(121, 98, 92, 0.12);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto;
+}
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.music-btn {
+  width: 38px;
+  height: 38px;
+  font-size: 0.95rem;
+}
+.hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.84);
+  border: 1px solid rgba(169, 127, 119, 0.10);
+  box-shadow: 0 10px 24px rgba(130, 98, 90, 0.10);
+  font-size: 0.92rem;
+}
+.hud-pill strong {
+  font-weight: 800;
+}
+.hearts {
+  letter-spacing: 0.15em;
+  color: #f06d78;
+  font-size: 1.02rem;
+}
+.rules {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto;
+  height: 44px;
+  overflow: hidden;
+}
+.rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(169, 127, 119, 0.08);
+  color: var(--muted);
+  font-size: 0.8rem;
+  box-shadow: 0 8px 18px rgba(130, 98, 90, 0.08);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rule.active {
+  color: var(--text);
+  border-color: rgba(94, 64, 57, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(94, 64, 57, 0.08), 0 10px 18px rgba(130, 98, 90, 0.12);
+}
+.stage {
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: start;
+}
+.board-shell {
+  position: relative;
+  padding: 14px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.74));
+  box-shadow: 0 24px 50px rgba(150, 112, 102, 0.14);
+  border: 1px solid rgba(169, 127, 119, 0.14);
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  touch-action: none;
+  cursor: pointer;
+  border-radius: 22px;
+}
+.overlay {
+  position: absolute;
+  inset: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: rgba(248, 241, 233, 0.68);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.overlay-card {
+  padding: 18px 22px;
+  border-radius: 24px;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(94, 64, 57, 0.12);
+  text-align: center;
+  box-shadow: 0 16px 36px rgba(130, 98, 90, 0.14);
+}
+.overlay-card h2 {
+  margin: 0 0 6px;
+  font-size: 1.55rem;
+}
+.overlay-card p {
+  margin: 0;
+  color: var(--muted);
+}
+.status-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto;
+}
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+button.control {
+  appearance: none;
+  border: 1px solid rgba(94, 64, 57, 0.12);
+  background: rgba(255,255,255,0.80);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(130, 98, 90, 0.08);
+}
+button.control.new-layout {
+  width: 102px;
+  padding: 9px 10px;
+  line-height: 1.02;
+}
+.status {
+  color: var(--muted);
+  font-size: 0.91rem;
+  line-height: 1.35;
+  min-height: 1.4em;
+}
+.status strong {
+  color: var(--good);
+}
+.bottom-banner {
+  position: relative;
+  width: min(560px, calc(100vw - 28px));
+  margin: 0 auto 2px;
+  padding: 12px 16px 10px;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #95ccff 0%, #74b5ef 100%);
+  box-shadow: 0 -16px 24px rgba(120, 164, 217, 0.24) inset;
+  overflow: hidden;
+  min-height: 64px;
+}
+.bottom-banner::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 100px;
+  height: 28px;
+  transform: translateX(-50%);
+  background:
+    radial-gradient(circle at 25% 65%, #74b5ef 0 14px, transparent 15px),
+    radial-gradient(circle at 75% 65%, #74b5ef 0 14px, transparent 15px),
+    linear-gradient(180deg, #95ccff, #74b5ef);
+  border-radius: 0 0 50px 50px;
+}
+.banner-animal {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 58px;
+  height: 28px;
+  transform: translateX(-50%);
+  border-radius: 14px 14px 10px 10px;
+  background: rgba(255,255,255,0.18);
+  filter: blur(0.2px);
+}
+.bottom-banner h3 {
+  margin: 8px 0 0;
+  text-align: center;
+  color: rgba(255,255,255,0.98);
+  font-size: clamp(1.1rem, 3vw, 1.55rem);
+  text-shadow: 0 4px 10px rgba(76, 132, 184, 0.30);
+  letter-spacing: 0.08em;
+}
+.bottom-banner p {
+  margin: 2px 0 0;
+  text-align: center;
+  color: rgba(255,255,255,0.88);
+  font-size: 0.74rem;
+}
+@media (max-width: 640px) {
+  body { overflow: hidden; }
+  main { min-height: 100vh; height: 100vh; }
+  .stage {
+    gap: 10px;
+  }
+  .rules {
+    width: min(560px, calc(100vw - 28px));
+    height: 36px;
+    gap: 6px;
+  }
+  .rule {
+    padding: 6px 8px;
+    font-size: 0.72rem;
+    border-radius: 12px;
+  }
+  .bottom-banner { min-height: 58px; padding-top: 10px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="bottom-banner">
+    <div class="banner-animal" aria-hidden="true"></div>
+    <h3>レベル 1</h3>
+    <p>短いタップで×、長押しで動物を表示</p>
+  </div>
+
+  <div class="hud">
+    <div class="hud-pill"><strong>🐾</strong> <span id="progress">0/5</span></div>
+    <div class="hud-right">
+      <div class="hud-pill hearts" id="hearts">❤️❤️❤️</div>
+      <button class="icon-btn music-btn" id="btn-music" aria-label="music">▶</button>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="rule active">1エリアにつき1匹</div>
+    <div class="rule active">各列・各行に1匹</div>
+    <div class="rule active">どうぶつ同士は隣接不可</div>
+  </div>
+
+  <section class="stage">
+    <div class="status-row">
+      <div class="controls">
+        <button class="control" id="btn-reset">Reset</button>
+        <button class="control" id="btn-check">Check</button>
+        <button class="control" id="btn-hint">Hint</button>
+        <button class="control new-layout" id="btn-new"><span>New<br>Layout</span></button>
+      </div>
+      <div class="status" id="status">Loading puzzle…</div>
+    </div>
+
+    <div class="board-shell" id="board-shell">
+      <canvas id="board"></canvas>
+      <div class="overlay" id="clear-overlay">
+        <div class="overlay-card">
+          <h2>クリア</h2>
+          <p>すべての動物を見つけました。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import init, * as wasm from './wasm/wasm_app.js?v=20260617-19';
+
+const BOARD_SIZES = { 1: 5, 2: 7, 3: 9 };
+const PALETTE = ['#f48fb0', '#b2df9f', '#ffbf59', '#a7c8f1', '#cbb6f2'];
+const ANIMALS = [
+  { name: 'dog', accent: '#f3af77', face: '#fff4e6', detail: '#5c4035' },
+  { name: 'rabbit', accent: '#f4bfd8', face: '#fff9fc', detail: '#6f5265' },
+  { name: 'fox', accent: '#f1a24c', face: '#fff5ea', detail: '#7a431f' },
+  { name: 'panda', accent: '#404040', face: '#ffffff', detail: '#202020' },
+  { name: 'bear', accent: '#c88f62', face: '#fff3e8', detail: '#55362a' },
+  { name: 'cat', accent: '#9e7bdf', face: '#f6f0ff', detail: '#5b477d' },
+  { name: 'owl', accent: '#7d96e8', face: '#f6f8ff', detail: '#32447b' },
+  { name: 'pig', accent: '#f1a2b4', face: '#fff4f7', detail: '#8b4f63' },
+  { name: 'frog', accent: '#88c97a', face: '#f4fff1', detail: '#37613a' },
+];
+
+const canvas = document.getElementById('board');
+const shell = document.getElementById('board-shell');
+const overlay = document.getElementById('clear-overlay');
+const statusEl = document.getElementById('status');
+const progressEl = document.getElementById('progress');
+const heartsEl = document.getElementById('hearts');
+
+let boardSize = 0;
+let cellSize = 0;
+let originX = 0;
+let originY = 0;
+let currentBoardSize = BOARD_SIZES[1];
+let zonesData = new Uint8Array(currentBoardSize * currentBoardSize);
+let solution = new Uint8Array(currentBoardSize * currentBoardSize);
+let currentAnimal = ANIMALS[0];
+let currentDifficulty = 1;
+let marks = new Uint8Array(currentBoardSize * currentBoardSize);
+let hovered = null;
+let animations = new Map();
+let revealCount = 0;
+let mistakes = 0;
+let running = false;
+let solved = false;
+let clickTimer = null;
+let longPressTimer = null;
+let longPressTriggered = false;
+let activePointer = null;
+let activeCell = null;
+let pressStart = null;
+let musicPlaying = false;
+let musicContext = null;
+let musicTimer = null;
+let musicStep = 0;
+let suppressedAutoMarks = new Set();
+
+const MUSIC_PATTERN = [261.63, 329.63, 392.0, 523.25, 392.0, 329.63];
+
+function zonesAt(row, col) {
+  return zonesData[row * currentBoardSize + col];
+}
+
+function isAdjacent(aRow, aCol, bRow, bCol) {
+  return Math.abs(aRow - bRow) <= 1 && Math.abs(aCol - bCol) <= 1;
+}
+
+function validLayout(cols) {
+  const usedCols = new Set();
+  const usedZones = new Set();
+  const positions = [];
+  for (let row = 0; row < currentBoardSize; row += 1) {
+    const col = cols[row];
+    if (col < 0 || col >= currentBoardSize || usedCols.has(col)) return false;
+    usedCols.add(col);
+    const zone = zonesAt(row, col);
+    if (usedZones.has(zone)) return false;
+    usedZones.add(zone);
+    for (const [pr, pc] of positions) {
+      if (isAdjacent(row, col, pr, pc)) return false;
+    }
+    positions.push([row, col]);
+  }
+  return true;
+}
+
+function enumerateLayouts() {
+  const cols = Array.from({ length: currentBoardSize }, (_, i) => i);
+  const found = [];
+  function permute(i) {
+    if (i === cols.length) {
+      if (validLayout(cols)) found.push(cols.slice());
+      return;
+    }
+    for (let j = i; j < cols.length; j += 1) {
+      [cols[i], cols[j]] = [cols[j], cols[i]];
+      permute(i + 1);
+      [cols[i], cols[j]] = [cols[j], cols[i]];
+    }
+  }
+  permute(0);
+  return found;
+}
+
+function syncHud() {
+  progressEl.textContent = `${revealCount}/${currentBoardSize}`;
+  heartsEl.textContent = '❤️'.repeat(Math.max(0, 3 - mistakes)) + '🖤'.repeat(Math.max(0, mistakes - 3));
+}
+
+function stopMusic() {
+  if (musicTimer) {
+    clearInterval(musicTimer);
+    musicTimer = null;
+  }
+  if (musicContext) {
+    musicContext.close().catch(() => {});
+    musicContext = null;
+  }
+  musicStep = 0;
+}
+
+async function startMusic() {
+  if (!musicContext) {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return false;
+    musicContext = new Ctor();
+  }
+  if (musicContext.state === 'suspended') {
+    await musicContext.resume();
+  }
+  if (musicTimer) return true;
+  musicTimer = setInterval(() => {
+    if (!musicContext) return;
+    const freq = MUSIC_PATTERN[musicStep % MUSIC_PATTERN.length];
+    const now = musicContext.currentTime;
+    const osc = musicContext.createOscillator();
+    const gain = musicContext.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.02, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+    osc.connect(gain);
+    gain.connect(musicContext.destination);
+    osc.start(now);
+    osc.stop(now + 0.46);
+    musicStep += 1;
+  }, 480);
+  return true;
+}
+
+function setStatus(text, accent = '') {
+  statusEl.innerHTML = accent ? `${text} <strong>${accent}</strong>` : text;
+}
+
+function setAnimation(row, col, kind) {
+  animations.set(row * currentBoardSize + col, {
+    kind,
+    started: performance.now(),
+    duration: kind === 'error' ? 340 : 260,
+  });
+}
+
+function clearTimers() {
+  if (clickTimer) {
+    clearTimeout(clickTimer);
+    clickTimer = null;
+  }
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+  longPressTriggered = false;
+  activePointer = null;
+  activeCell = null;
+  pressStart = null;
+}
+
+function resizeCanvas() {
+  const rect = shell.getBoundingClientRect();
+  const topbar = document.querySelector('.topbar')?.getBoundingClientRect();
+  const hud = document.querySelector('.hud')?.getBoundingClientRect();
+  const rules = document.querySelector('.rules')?.getBoundingClientRect();
+  const statusRow = document.querySelector('.status-row')?.getBoundingClientRect();
+  const banner = document.querySelector('.bottom-banner')?.getBoundingClientRect();
+  const verticalBudget = window.innerHeight
+    - (topbar?.height || 0)
+    - (hud?.height || 0)
+    - (rules?.height || 0)
+    - (statusRow?.height || 0)
+    - (banner?.height || 0)
+    - 16 * 2
+    - 12 * 4;
+  const widthBudget = Math.floor(rect.width - 28);
+  const heightBudget = Math.floor(verticalBudget - 28);
+  const size = Math.max(280, Math.floor(Math.min(widthBudget, heightBudget)));
+  canvas.width = size;
+  canvas.height = size;
+  boardSize = size;
+  cellSize = boardSize / currentBoardSize;
+  originX = 0;
+  originY = 0;
+}
+
+function cellAtPoint(x, y) {
+  const cx = x - originX;
+  const cy = y - originY;
+  if (cx < 0 || cy < 0 || cx >= boardSize || cy >= boardSize) return null;
+  return {
+    row: Math.floor(cy / cellSize),
+    col: Math.floor(cx / cellSize),
+  };
+}
+
+function shade(hex, amount) {
+  const n = hex.replace('#', '');
+  const r = parseInt(n.slice(0, 2), 16);
+  const g = parseInt(n.slice(2, 4), 16);
+  const b = parseInt(n.slice(4, 6), 16);
+  const clamp = (v) => Math.max(0, Math.min(255, v));
+  return `rgb(${clamp(Math.round(r + 255 * amount))}, ${clamp(Math.round(g + 255 * amount))}, ${clamp(Math.round(b + 255 * amount))})`;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w * 0.5, h * 0.5);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.lineTo(x + w - rr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+  ctx.lineTo(x + w, y + h - rr);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+  ctx.lineTo(x + rr, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+  ctx.lineTo(x, y + rr);
+  ctx.quadraticCurveTo(x, y, x + rr, y);
+  ctx.closePath();
+}
+
+function drawX(ctx, cx, cy, size) {
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(86, 54, 49, 0.55)';
+  ctx.lineWidth = Math.max(3, size * 0.10);
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.26, cy - size * 0.26);
+  ctx.lineTo(cx + size * 0.26, cy + size * 0.26);
+  ctx.moveTo(cx + size * 0.26, cy - size * 0.26);
+  ctx.lineTo(cx - size * 0.26, cy + size * 0.26);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawAnimal(ctx, cx, cy, size, animal, pulse = 1) {
+  const r = size * 0.36 * pulse;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.shadowColor = 'rgba(0,0,0,0.14)';
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 5;
+  ctx.fillStyle = animal.accent;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  drawAnimalFace(ctx, animal, r);
+  ctx.restore();
+}
+
+function drawCircleFace(ctx, faceFill, detailFill, r, earFill = detailFill) {
+  ctx.fillStyle = earFill;
+  ctx.beginPath();
+  ctx.arc(-r * 0.52, -r * 0.58, r * 0.20, 0, Math.PI * 2);
+  ctx.arc(r * 0.52, -r * 0.58, r * 0.20, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = faceFill;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = detailFill;
+  ctx.beginPath();
+  ctx.arc(-r * 0.22, -r * 0.10, r * 0.08, 0, Math.PI * 2);
+  ctx.arc(r * 0.22, -r * 0.10, r * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawAnimalFace(ctx, animal, r) {
+  const face = animal.face;
+  const detail = animal.detail;
+  switch (animal.name) {
+    case 'dog': {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.94, 0, Math.PI * 2);
+      ctx.fill();
+      drawCircleFace(ctx, face, detail, r, animal.accent);
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      roundRect(ctx, -r * 0.16, r * 0.20, r * 0.32, r * 0.18, r * 0.08);
+      ctx.fill();
+      break;
+    }
+    case 'rabbit': {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.32, -r * 0.76, r * 0.12, r * 0.42, -0.08, 0, Math.PI * 2);
+      ctx.ellipse(r * 0.32, -r * 0.76, r * 0.12, r * 0.42, 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.32, -r * 0.78, r * 0.07, r * 0.28, -0.08, 0, Math.PI * 2);
+      ctx.ellipse(r * 0.32, -r * 0.78, r * 0.07, r * 0.28, 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      drawCircleFace(ctx, face, detail, r, animal.accent);
+      ctx.fillStyle = '#f6a8bf';
+      ctx.beginPath();
+      ctx.arc(0, r * 0.15, r * 0.10, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'fox': {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.70, -r * 0.20);
+      ctx.lineTo(-r * 0.34, -r * 0.76);
+      ctx.lineTo(-r * 0.16, -r * 0.16);
+      ctx.closePath();
+      ctx.moveTo(r * 0.70, -r * 0.20);
+      ctx.lineTo(r * 0.34, -r * 0.76);
+      ctx.lineTo(r * 0.16, -r * 0.16);
+      ctx.closePath();
+      ctx.fill();
+      drawCircleFace(ctx, face, detail, r, animal.accent);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.26, r * 0.02);
+      ctx.lineTo(0, r * 0.36);
+      ctx.lineTo(r * 0.26, r * 0.02);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'panda': {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.arc(-r * 0.42, -r * 0.62, r * 0.18, 0, Math.PI * 2);
+      ctx.arc(r * 0.42, -r * 0.62, r * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = face;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.74, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      ctx.arc(-r * 0.26, -r * 0.08, r * 0.15, 0, Math.PI * 2);
+      ctx.arc(r * 0.26, -r * 0.08, r * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-r * 0.26, -r * 0.08, r * 0.06, 0, Math.PI * 2);
+      ctx.arc(r * 0.26, -r * 0.08, r * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.18, r * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'bear':
+    case 'cat': {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.62, -r * 0.18);
+      ctx.lineTo(-r * 0.34, -r * 0.78);
+      ctx.lineTo(-r * 0.12, -r * 0.20);
+      ctx.closePath();
+      ctx.moveTo(r * 0.62, -r * 0.18);
+      ctx.lineTo(r * 0.34, -r * 0.78);
+      ctx.lineTo(r * 0.12, -r * 0.20);
+      ctx.closePath();
+      ctx.fill();
+      drawCircleFace(ctx, face, detail, r, animal.accent);
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      ctx.arc(-r * 0.18, -r * 0.12, r * 0.05, 0, Math.PI * 2);
+      ctx.arc(r * 0.18, -r * 0.12, r * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'owl': {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.82, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = face;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.64, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      ctx.arc(-r * 0.24, -r * 0.06, r * 0.16, 0, Math.PI * 2);
+      ctx.arc(r * 0.24, -r * 0.06, r * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-r * 0.24, -r * 0.06, r * 0.06, 0, Math.PI * 2);
+      ctx.arc(r * 0.24, -r * 0.06, r * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.moveTo(0, r * 0.08);
+      ctx.lineTo(-r * 0.08, r * 0.24);
+      ctx.lineTo(r * 0.08, r * 0.24);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'pig': {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.88, 0, Math.PI * 2);
+      ctx.fill();
+      drawCircleFace(ctx, face, detail, r, animal.accent);
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.18, r * 0.08, r * 0.10, r * 0.14, -0.15, 0, Math.PI * 2);
+      ctx.ellipse(r * 0.18, r * 0.08, r * 0.10, r * 0.14, 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'frog': {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.80, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = face;
+      ctx.beginPath();
+      ctx.arc(-r * 0.26, -r * 0.56, r * 0.18, 0, Math.PI * 2);
+      ctx.arc(r * 0.26, -r * 0.56, r * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      ctx.arc(-r * 0.26, -r * 0.56, r * 0.07, 0, Math.PI * 2);
+      ctx.arc(r * 0.26, -r * 0.56, r * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-r * 0.26, -r * 0.56, r * 0.03, 0, Math.PI * 2);
+      ctx.arc(r * 0.26, -r * 0.56, r * 0.03, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.16, r * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'bear':
+    default: {
+      ctx.fillStyle = animal.accent;
+      ctx.beginPath();
+      ctx.arc(-r * 0.45, -r * 0.58, r * 0.16, 0, Math.PI * 2);
+      ctx.arc(r * 0.45, -r * 0.58, r * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      drawCircleFace(ctx, face, detail, r, animal.accent);
+      ctx.fillStyle = detail;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.16, r * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+  }
+}
+
+function drawBoard(now) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#fffaf7');
+  bg.addColorStop(1, '#f8eee8');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  const pulse = 0.5 + 0.5 * Math.sin(now * 0.0015);
+
+  for (let r = 0; r < currentBoardSize; r += 1) {
+    for (let c = 0; c < currentBoardSize; c += 1) {
+      const idx = r * currentBoardSize + c;
+      const zone = zonesData[idx];
+      const x = c * cellSize;
+      const y = r * cellSize;
+      const isHover = hovered && hovered.row === r && hovered.col === c;
+      const animalPlaced = wasm.animal_puzzle_is_occupied(r, c);
+      const autoMarked = !animalPlaced && !suppressedAutoMarks.has(idx) && !wasm.animal_puzzle_is_valid(r, c);
+      const xMarked = (marks[idx] === 1 || autoMarked) && !animalPlaced;
+      const anim = animations.get(idx);
+      let scale = 1;
+      let shakeX = 0;
+      let shakeY = 0;
+
+      if (anim) {
+        const t = Math.min(1, (now - anim.started) / anim.duration);
+        if (anim.kind === 'reveal') {
+          scale = 0.72 + 0.28 * (1 - Math.pow(1 - t, 3));
+          if (t >= 1) animations.delete(idx);
+        } else if (anim.kind === 'error') {
+          const amp = (1 - t) * 5;
+          shakeX = Math.sin(t * 28) * amp;
+          shakeY = Math.cos(t * 22) * amp * 0.35;
+          if (t >= 1) animations.delete(idx);
+        } else if (anim.kind === 'mark') {
+          scale = 0.9 + 0.1 * pulse;
+          if (t >= 1) animations.delete(idx);
+        }
+      }
+
+      const base = PALETTE[zone % PALETTE.length];
+      const fill = base;
+
+      ctx.save();
+      ctx.translate(x + shakeX, y + shakeY);
+      ctx.fillStyle = fill;
+      roundRect(ctx, 3.5, 3.5, cellSize - 7, cellSize - 7, cellSize * 0.18);
+      ctx.fill();
+
+      ctx.lineWidth = isHover ? 2.4 : 1.3;
+      ctx.strokeStyle = isHover ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.68)';
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      roundRect(ctx, 8, 8, cellSize - 16, cellSize - 16, cellSize * 0.14);
+      ctx.fill();
+
+      if (xMarked) {
+        drawX(ctx, cellSize / 2, cellSize / 2, cellSize * 0.64);
+      }
+
+      if (animalPlaced) {
+        drawAnimal(ctx, cellSize / 2, cellSize / 2, cellSize * 0.88, currentAnimal, scale);
+      }
+
+      ctx.restore();
+    }
+  }
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.94)';
+  ctx.lineWidth = 4;
+  roundRect(ctx, 1.5, 1.5, boardSize - 3, boardSize - 3, 24);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function updateSolvedState() {
+  const nextSolved = wasm.animal_puzzle_is_solved();
+  if (nextSolved !== solved) {
+    solved = nextSolved;
+    overlay.classList.toggle('show', solved);
+    if (solved) {
+      setStatus('Solved!', 'よくできました');
+    }
+  }
+}
+
+function revealCell(row, col, source = 'manual') {
+  const idx = row * currentBoardSize + col;
+  if (wasm.animal_puzzle_is_occupied(row, col)) {
+    return true;
+  }
+  if (solution[idx] !== 1) {
+    mistakes += 1;
+    setAnimation(row, col, 'error');
+    syncHud();
+    setStatus('そこにはいないよ', source === 'hint' ? 'ヒント失敗' : 'もう一度');
+    return false;
+  }
+
+  const ok = wasm.animal_puzzle_toggle(row, col);
+  if (!ok) {
+    mistakes += 1;
+    setAnimation(row, col, 'error');
+    syncHud();
+    setStatus('そこにはいないよ', 'もう一度');
+    return false;
+  }
+
+  marks[idx] = 0;
+  suppressedAutoMarks.delete(idx);
+  revealCount = wasm.animal_puzzle_count();
+  setAnimation(row, col, 'reveal');
+  syncHud();
+  updateSolvedState();
+  setStatus(`動物を見つけた R${row + 1} C${col + 1}`, `${revealCount}/${currentBoardSize}`);
+  return true;
+}
+
+function toggleLongPressCell(row, col) {
+  const idx = row * currentBoardSize + col;
+  if (wasm.animal_puzzle_is_occupied(row, col)) {
+    const ok = wasm.animal_puzzle_toggle(row, col);
+    if (!ok) {
+      setStatus('キャンセルできなかった', 'もう一度');
+      return false;
+    }
+    marks[idx] = 0;
+    suppressedAutoMarks.add(idx);
+    revealCount = wasm.animal_puzzle_count();
+    setAnimation(row, col, 'mark');
+    syncHud();
+    updateSolvedState();
+    setStatus(`キャンセルした R${row + 1} C${col + 1}`, `${revealCount}/${currentBoardSize}`);
+    return true;
+  }
+
+  return revealCell(row, col, 'manual');
+}
+
+function toggleMark(row, col) {
+  if (wasm.animal_puzzle_is_occupied(row, col)) return;
+  const idx = row * currentBoardSize + col;
+  if (!wasm.animal_puzzle_is_valid(row, col)) {
+    marks[idx] = 0;
+    setStatus('そこは自動で×だよ', 'ルール');
+    return;
+  }
+  marks[idx] ^= 1;
+  setAnimation(row, col, 'mark');
+  setStatus(marks[idx] ? '× をつけた' : '× を消した', '候補');
+}
+
+function resetPuzzle() {
+  wasm.animal_puzzle_reset();
+  marks.fill(0);
+  suppressedAutoMarks.clear();
+  revealCount = 0;
+  mistakes = 0;
+  solved = false;
+  overlay.classList.remove('show');
+  clearTimers();
+  syncHud();
+  setStatus('もう一度やってみよう', 'Reset');
+}
+
+function applyPuzzleSpec(spec) {
+  const nextBoardSize = spec.size ?? currentBoardSize;
+  if (nextBoardSize !== currentBoardSize) {
+    currentBoardSize = nextBoardSize;
+    zonesData = new Uint8Array(currentBoardSize * currentBoardSize);
+    solution = new Uint8Array(currentBoardSize * currentBoardSize);
+    marks = new Uint8Array(currentBoardSize * currentBoardSize);
+    suppressedAutoMarks.clear();
+  }
+  currentDifficulty = spec.difficulty ?? currentDifficulty;
+  zonesData = Uint8Array.from(spec.zones ?? []);
+  solution = Uint8Array.from(spec.solution ?? []);
+  currentAnimal = ANIMALS[(spec.animal_kind ?? 0) % ANIMALS.length];
+  document.querySelector('.bottom-banner h3').textContent = `レベル ${currentDifficulty} / ${currentBoardSize}×${currentBoardSize}`;
+
+  wasm.animal_puzzle_set_zones(zonesData);
+  wasm.animal_puzzle_set_solution(solution);
+  resetPuzzle();
+}
+
+function loadPuzzle(nextDifficulty = currentDifficulty) {
+  const size = BOARD_SIZES[nextDifficulty] ?? currentBoardSize;
+  currentBoardSize = size;
+  const spec = JSON.parse(wasm.animal_puzzle_generate(size, nextDifficulty));
+  applyPuzzleSpec(spec);
+  resizeCanvas();
+}
+
+function useHint() {
+  for (let r = 0; r < currentBoardSize; r += 1) {
+    for (let c = 0; c < currentBoardSize; c += 1) {
+      const idx = r * currentBoardSize + c;
+      if (solution[idx] !== 1 || wasm.animal_puzzle_is_occupied(r, c)) continue;
+      revealCell(r, c, 'hint');
+      return;
+    }
+  }
+  setStatus('もうヒントはないよ', '全部見つけた');
+}
+
+function updatePointerPosition(event) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (event.clientY - rect.top) * (canvas.height / rect.height);
+  return cellAtPoint(x, y);
+}
+
+function onPointerDown(event) {
+  const pos = updatePointerPosition(event);
+  if (!pos) return;
+  hovered = pos;
+  activePointer = event.pointerId;
+  activeCell = pos;
+  pressStart = performance.now();
+  longPressTriggered = false;
+  if (longPressTimer) clearTimeout(longPressTimer);
+  longPressTimer = setTimeout(() => {
+    if (!activeCell || longPressTriggered) return;
+    longPressTriggered = true;
+    suppressNextClick = true;
+    toggleLongPressCell(activeCell.row, activeCell.col);
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      clickTimer = null;
+    }
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    activePointer = null;
+    activeCell = null;
+    pressStart = null;
+  }, 450);
+  if (canvas.setPointerCapture && event.pointerId !== undefined) {
+    try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+  }
+}
+
+let suppressNextClick = false;
+
+function onPointerUp(event) {
+  if (activePointer !== event.pointerId) return;
+  const pos = updatePointerPosition(event) || activeCell;
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+  const held = pressStart ? (performance.now() - pressStart) : 0;
+  const didLongPress = longPressTriggered || held >= 420;
+  if (!didLongPress && pos) {
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      clickTimer = null;
+      revealCell(pos.row, pos.col);
+    } else {
+      clickTimer = setTimeout(() => {
+        toggleMark(pos.row, pos.col);
+        clickTimer = null;
+      }, 180);
+    }
+  } else {
+    suppressNextClick = true;
+  }
+  activePointer = null;
+  activeCell = null;
+  pressStart = null;
+  longPressTriggered = false;
+}
+
+canvas.addEventListener('pointermove', (event) => {
+  hovered = updatePointerPosition(event);
+});
+canvas.addEventListener('pointerleave', () => {
+  hovered = null;
+});
+canvas.addEventListener('pointercancel', clearTimers);
+canvas.addEventListener('pointerdown', onPointerDown);
+canvas.addEventListener('pointerup', onPointerUp);
+canvas.addEventListener('click', (event) => {
+  if (suppressNextClick) {
+    suppressNextClick = false;
+    event.preventDefault();
+    return;
+  }
+  event.preventDefault();
+});
+canvas.addEventListener('dblclick', (event) => {
+  event.preventDefault();
+  const pos = updatePointerPosition(event);
+  if (pos) {
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      clickTimer = null;
+    }
+    revealCell(pos.row, pos.col);
+  }
+});
+canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+window.addEventListener('resize', resizeCanvas);
+
+document.getElementById('btn-music').addEventListener('click', () => {
+  musicPlaying = !musicPlaying;
+  document.getElementById('btn-music').textContent = musicPlaying ? '⏸' : '▶';
+  if (musicPlaying) {
+    startMusic().catch(() => {
+      musicPlaying = false;
+      document.getElementById('btn-music').textContent = '▶';
+      setStatus('BGM を開始できませんでした', 'audio');
+    });
+  } else {
+    stopMusic();
+  }
+  setStatus(musicPlaying ? 'BGM 再生' : 'BGM 停止', musicPlaying ? 'ON' : 'OFF');
+});
+document.getElementById('btn-reset').addEventListener('click', resetPuzzle);
+document.getElementById('btn-check').addEventListener('click', () => {
+  updateSolvedState();
+  setStatus(
+    solved ? 'Solved!' : `${revealCount}/${currentBoardSize} だよ`,
+    solved ? 'Complete' : '続けよう',
+  );
+});
+document.getElementById('btn-hint').addEventListener('click', useHint);
+document.getElementById('btn-new').addEventListener('click', () => {
+  const nextDifficulty = currentDifficulty >= 3 ? 1 : currentDifficulty + 1;
+  loadPuzzle(nextDifficulty);
+  setStatus('新しい盤面を作ったよ', `Lv ${nextDifficulty} / ${currentBoardSize}×${currentBoardSize}`);
+});
+
+async function start() {
+  try {
+    await init({ module_or_path: './wasm/wasm_app_bg.wasm?v=20260617-18' });
+    loadPuzzle(currentDifficulty);
+    resizeCanvas();
+    revealCount = wasm.animal_puzzle_count();
+    syncHud();
+    setStatus('短いタップで×、長押しで動物', `Lv ${currentDifficulty} / ${currentBoardSize}×${currentBoardSize}`);
+    running = true;
+    const loop = (now) => {
+      if (!running) return;
+      drawBoard(now);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  } catch (err) {
+    console.error('Animal Doku init failed:', err);
+    overlay.classList.add('show');
+    overlay.querySelector('h2').textContent = 'Load error';
+    overlay.querySelector('p').textContent = 'WASM 初期化に失敗しました。';
+    setStatus('Failed to load puzzle.', String(err?.message ?? err));
+  }
+}
+
+start();
+</script>
+</body>
+</html>
