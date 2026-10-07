@@ -19,6 +19,7 @@ import { requestViewModeChange } from "../../utils/editMode";
 import { openImageInPhotoCraft } from "../../utils/photoCraft";
 import { openPdfInPrintCraft } from "../../utils/printCraft";
 import { openVideoInFilmCraft } from "../../utils/filmCraft";
+import { openAudioInAudioMass } from "../../utils/audioMass";
 
 interface ToolbarButton {
   command: string;
@@ -95,6 +96,7 @@ export const Toolbar: Component = () => {
   const [showPhotoCraftLicense, setShowPhotoCraftLicense] = createSignal(false);
   const [showPrintCraftLicense, setShowPrintCraftLicense] = createSignal(false);
   const [showFilmCraftLicense, setShowFilmCraftLicense] = createSignal(false);
+  const [showAudioMassLicense, setShowAudioMassLicense] = createSignal(false);
   const [overflowIndex, setOverflowIndex] = createSignal<number>(-1);
   const [headingMenuPos, setHeadingMenuPos] = createSignal({ x: 0, y: 0 });
   const [markerMenuPos, setMarkerMenuPos] = createSignal({ x: 0, y: 0 });
@@ -151,11 +153,18 @@ export const Toolbar: Component = () => {
   const isImageFile = () => vaultStore.activeFile()?.kind === "image";
   const isPdfFile = () => /\.pdf$/i.test(vaultStore.activeFile()?.path ?? "");
   const isVideoFile = () => /\.(mp4|mov|m4v|webm|mkv|avi|wmv|mpg|mpeg|mxf|mts|m2ts)$/i.test(vaultStore.activeFile()?.path ?? "");
-  const currentViewMode = () => isImageFile() || isPdfFile() || isVideoFile()
+  const isAudioFile = () => /\.(mp3|wav|ogg|flac|aac|m4a|opus)$/i.test(vaultStore.activeFile()?.path ?? "");
+  const currentViewMode = () => isImageFile() || isPdfFile() || isVideoFile() || isAudioFile()
     ? "reading"
     : editorStore.getViewModeForFile(vaultStore.activeFile()?.path ?? null);
   const activePath = () => vaultStore.activeFile()?.path ?? null;
-  const modeButtons = createMemo(() => isVideoFile()
+  const modeButtons = createMemo(() => isAudioFile()
+    ? [
+        { mode: "reading" as const, label: t("context.readingView") },
+        { mode: "audiomass-edit" as const, label: t("audiomass.editButton") },
+        { mode: "audiomass-license" as const, label: t("audiomass.licenseButton") },
+      ]
+    : isVideoFile()
     ? [
         { mode: "reading" as const, label: t("context.readingView") },
         { mode: "filmcraft-edit" as const, label: t("filmcraft.editButton") },
@@ -179,8 +188,12 @@ export const Toolbar: Component = () => {
         { mode: "source" as const, label: t("context.sourceMode") },
       ]);
   const openPhotoCraftLicense = () => setShowPhotoCraftLicense(true);
-  const selectMode = (mode: "reading" | "live-preview" | "source" | "printcraft-edit" | "filmcraft-edit") => {
+  const selectMode = (mode: "reading" | "live-preview" | "source" | "printcraft-edit" | "filmcraft-edit" | "audiomass-edit") => {
     const path = activePath();
+    if (isAudioFile()) {
+      if (mode === "audiomass-edit" && path) openAudioInAudioMass(path);
+      return;
+    }
     if (isVideoFile()) {
       if (mode === "filmcraft-edit" && path) openVideoInFilmCraft(path);
       return;
@@ -193,7 +206,7 @@ export const Toolbar: Component = () => {
       if (mode === "live-preview" && path) openImageInPhotoCraft(path);
       return;
     }
-    if (mode === "printcraft-edit" || mode === "filmcraft-edit") return;
+    if (mode === "printcraft-edit" || mode === "filmcraft-edit" || mode === "audiomass-edit") return;
     if (path) void requestViewModeChange(path, mode);
   };
   const saveCurrent = () => {
@@ -315,7 +328,7 @@ export const Toolbar: Component = () => {
         "flex-shrink": "0",
       }}
     >
-      <Show when={!isImageFile() && !isPdfFile()}>
+      <Show when={!isImageFile() && !isPdfFile() && !isAudioFile()}>
         <div
           ref={itemsRef}
           style={{
@@ -381,10 +394,10 @@ export const Toolbar: Component = () => {
           "align-items": "center",
           gap: "2px",
           "flex-shrink": "0",
-          "margin-left": isImageFile() || isPdfFile() ? "auto" : "4px",
+          "margin-left": isImageFile() || isPdfFile() || isAudioFile() ? "auto" : "4px",
         }}
       >
-        <Show when={!isImageFile() && overflowIndex() >= 0}>
+        <Show when={!isImageFile() && !isAudioFile() && overflowIndex() >= 0}>
           <button
             onClick={(event) => {
               event.stopPropagation();
@@ -403,7 +416,7 @@ export const Toolbar: Component = () => {
           </button>
         </Show>
 
-        <Show when={!isImageFile() && activePath() && currentViewMode() !== "reading"}>
+        <Show when={!isImageFile() && !isAudioFile() && activePath() && currentViewMode() !== "reading"}>
           <button
             onClick={saveCurrent}
             title={t("common.save")}
@@ -430,6 +443,8 @@ export const Toolbar: Component = () => {
         <For each={modeButtons()}>{({ mode, label }) => {
           const selected = () => mode === "photocraft-license"
             ? showPhotoCraftLicense()
+            : mode === "audiomass-license"
+              ? showAudioMassLicense()
             : mode === "printcraft-license"
               ? showPrintCraftLicense()
               : mode === "filmcraft-license"
@@ -438,6 +453,8 @@ export const Toolbar: Component = () => {
           return <button
             onClick={() => mode === "photocraft-license"
               ? openPhotoCraftLicense()
+              : mode === "audiomass-license"
+                ? setShowAudioMassLicense(true)
               : mode === "printcraft-license"
                 ? setShowPrintCraftLicense(true)
                 : mode === "filmcraft-license"
@@ -497,6 +514,27 @@ export const Toolbar: Component = () => {
               <a href={filmCraftLicenseUrl("NOTICE")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>NOTICE</a>
               <a href={filmCraftLicenseUrl("ATTRIBUTION.md")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("filmcraft.attributionLink")}</a>
               <a href={filmCraftLicenseUrl("LICENSE-brand.txt")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("filmcraft.brandLicense")}</a>
+            </div>
+          </section>
+        </div>
+      </Show>
+
+      <Show when={showAudioMassLicense()}>
+        <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowAudioMassLicense(false); }} style={{ position: "fixed", inset: "0", display: "flex", "align-items": "center", "justify-content": "center", padding: "20px", background: "rgba(0,0,0,.58)", "z-index": "20000" }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="audiomass-license-title" style={{ width: "min(560px, 100%)", "max-height": "min(80vh, 700px)", overflow: "auto", padding: "22px", color: "var(--mz-text-primary)", background: "var(--mz-bg-secondary)", border: "1px solid var(--mz-border-strong)", "border-radius": "var(--mz-radius-lg)", "box-shadow": "0 20px 60px rgba(0,0,0,.45)" }}>
+            <div style={{ display: "flex", "align-items": "center", gap: "12px", "margin-bottom": "16px" }}>
+              <h2 id="audiomass-license-title" style={{ margin: "0", flex: "1", "font-size": "var(--mz-font-size-lg)" }}>{t("audiomass.licenseTitle")}</h2>
+              <button type="button" title={t("common.close")} aria-label={t("common.close")} onClick={() => setShowAudioMassLicense(false)} style={{ ...iconButtonStyle, border: "1px solid var(--mz-border)", "border-radius": "var(--mz-radius-sm)" }}>×</button>
+            </div>
+            <p style={{ "line-height": "1.6", color: "var(--mz-text-secondary)" }}>{t("audiomass.licenseSummary")}</p>
+            <h3 style={{ "margin-bottom": "6px", "font-size": "var(--mz-font-size-md)" }}>{t("audiomass.mindzjChangesTitle")}</h3>
+            <p style={{ "line-height": "1.6", color: "var(--mz-text-secondary)" }}>{t("audiomass.mindzjChanges")}</p>
+            <p style={{ "font-size": "var(--mz-font-size-xs)", color: "var(--mz-text-muted)" }}>AudioMass · upstream source is bundled with integration changes</p>
+            <div style={{ display: "flex", "flex-wrap": "wrap", gap: "8px", "margin-top": "18px" }}>
+              <a href="https://github.com/pkalogiros/AudioMass" target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("audiomass.upstreamLink")}</a>
+              <a href={audioMassResourceUrl("LICENSE")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>MIT License</a>
+              <a href={audioMassResourceUrl("THIRD_PARTY_NOTICES.md")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("audiomass.thirdPartyNotices")}</a>
+              <a href={audioMassResourceUrl("MINDZJ-INTEGRATION.md")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("audiomass.integrationNotes")}</a>
             </div>
           </section>
         </div>
@@ -729,6 +767,11 @@ function printCraftLicenseUrl(fileName: string): string {
 function filmCraftLicenseUrl(fileName: string): string {
   const appBase = new URL(import.meta.env.BASE_URL, window.location.origin);
   return new URL(`filmcraft/${fileName}`, appBase).toString();
+}
+
+function audioMassResourceUrl(fileName: string): string {
+  const appBase = new URL(import.meta.env.BASE_URL, window.location.origin);
+  return new URL(`audiomass/${fileName}`, appBase).toString();
 }
 
 const licenseLinkStyle = {

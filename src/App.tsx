@@ -102,7 +102,7 @@ type PaneSlot = "primary" | "secondary";
 type EmbeddedEditorSession = {
     url: string;
     fileName: string;
-    editor: "PhotoCraft" | "MindZJ PDF" | "FilmCraft";
+    editor: "PhotoCraft" | "MindZJ PDF" | "FilmCraft" | "AudioMass";
     close: () => void;
     connect?: (frame: HTMLIFrameElement) => void;
 };
@@ -1505,13 +1505,21 @@ const App: Component = () => {
             embeddedEditorSession()?.close();
             setEmbeddedEditorSession(session);
         };
+        const handleOpenAudioMass = (event: Event) => {
+            const session = (event as CustomEvent<EmbeddedEditorSession>).detail;
+            if (!session?.url) return;
+            embeddedEditorSession()?.close();
+            setEmbeddedEditorSession(session);
+        };
         window.addEventListener("mindzj:open-photocraft", handleOpenPhotoCraft);
         window.addEventListener("mindzj:open-printcraft", handleOpenPrintCraft);
         window.addEventListener("mindzj:open-filmcraft", handleOpenFilmCraft);
+        window.addEventListener("mindzj:open-audiomass", handleOpenAudioMass);
         onCleanup(() => {
             window.removeEventListener("mindzj:open-photocraft", handleOpenPhotoCraft);
             window.removeEventListener("mindzj:open-printcraft", handleOpenPrintCraft);
             window.removeEventListener("mindzj:open-filmcraft", handleOpenFilmCraft);
+            window.removeEventListener("mindzj:open-audiomass", handleOpenAudioMass);
             embeddedEditorSession()?.close();
         });
         document.body.style.removeProperty("zoom");
@@ -4475,6 +4483,7 @@ const App: Component = () => {
                                         vaultStore.activeFile()?.kind === "image" ||
                                         /\.pdf$/i.test(vaultStore.activeFile()?.path ?? "") ||
                                         /\.(mp4|mov|m4v|webm|mkv|avi|wmv|mpg|mpeg|mxf|mts|m2ts)$/i.test(vaultStore.activeFile()?.path ?? "") ||
+                                        /\.(mp3|wav|ogg|flac|aac|m4a|opus)$/i.test(vaultStore.activeFile()?.path ?? "") ||
                                         ((settingsStore.settings()
                                             .show_markdown_toolbar ||
                                             editorStore.getViewModeForFile(
@@ -4610,7 +4619,7 @@ const App: Component = () => {
                                     <iframe
                                         src={embeddedEditorSession()!.url}
                                         title={`${embeddedEditorSession()!.editor} — ${embeddedEditorSession()!.fileName}`}
-                                        allow="clipboard-read; clipboard-write"
+                                        allow="clipboard-read; clipboard-write; microphone"
                                         onLoad={(event) => embeddedEditorSession()?.connect?.(event.currentTarget)}
                                         style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
                                     />

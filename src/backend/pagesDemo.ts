@@ -179,7 +179,7 @@ export class PagesDemoBackend implements MindZjBackend {
       case "write_binary_file": {
         const path = vaultRelative(String(args.relativePath || "")); const encoded = String(args.base64Data || "");
         const extension = path.split(".").pop()?.toLowerCase() || "bin";
-        const mime = ({ png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", glb: "model/gltf-binary", mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg" } as Record<string, string>)[extension] || "application/octet-stream";
+        const mime = ({ png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", glb: "model/gltf-binary", mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", opus: "audio/opus", flac: "audio/flac" } as Record<string, string>)[extension] || "application/octet-stream";
         local[`${activeVault}/${path}`] = { content: `data:${mime};base64,${encoded}` }; saveFiles(local); result = undefined; break;
       }
       case "toggle_plugin": case "delete_plugin": case "import_theme": case "write_theme": case "delete_theme": result = undefined; break;
