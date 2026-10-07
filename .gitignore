@@ -8,6 +8,7 @@ dist-pages/
 src-tauri/target/
 cli/target/
 /Vaults/
+test/.mindzj/
 
 # Environment
 .env

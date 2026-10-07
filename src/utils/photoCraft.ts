@@ -65,6 +65,7 @@ export function openImageInPhotoCraft(relativePath: string): void {
     detail: {
       url: url.toString(),
       fileName: imageName,
+      editor: "PhotoCraft" as const,
       close: () => channel?.close(),
     },
   }));

@@ -6,6 +6,14 @@ const localKey = "mindzj-pages-demo-files-v1";
 const settingsKey = "mindzj-pages-demo-settings-v1";
 const workspaceKey = "mindzj-pages-demo-workspace-v1";
 const base = import.meta.env.BASE_URL;
+const introPaths: Record<string, string> = {
+  "zh-CN": "MindZJWeb-zh-CN.md",
+  en: "MindZJWeb-en.md",
+  ja: "MindZJWeb-ja.md",
+  fr: "MindZJWeb-fr.md",
+  de: "MindZJWeb-de.md",
+  es: "MindZJWeb-es.md",
+};
 
 let manifestPromise: Promise<Manifest> | undefined;
 let activeVault = "test";
@@ -130,7 +138,34 @@ export class PagesDemoBackend implements MindZjBackend {
       case "update_settings": localStorage.setItem(settingsKey, JSON.stringify(args.settings ?? {})); result = undefined; break;
       case "get_hotkeys": result = []; break;
       case "save_hotkeys": result = undefined; break;
-      case "load_workspace": result = JSON.parse(localStorage.getItem(workspaceKey) || "null") ?? { open_files: ["ドキュメント/教科書/UnrealEngine入門.md"], active_file: "ドキュメント/教科書/UnrealEngine入門.md", primary_pane_path: "ドキュメント/教科書/UnrealEngine入門.md", secondary_pane_path: null, active_pane_slot: "primary", split_direction: "right", split_ratio: 0.5, sidebar_tab: "files", sidebar_collapsed: false, sidebar_width: 260, sidebar_tab_order: [], file_scroll_positions: {}, file_top_lines: {}, file_view_modes: {}, file_last_non_reading_view_modes: {} }; break;
+      case "load_workspace": {
+        const language = (() => {
+          try {
+            const settings = JSON.parse(localStorage.getItem(settingsKey) || "{}");
+            return settings.locale || localStorage.getItem("mindzj-pending-locale") || "ja";
+          } catch { return localStorage.getItem("mindzj-pending-locale") || "ja"; }
+        })();
+        const intro = introPaths[language] || introPaths.en;
+        const saved = JSON.parse(localStorage.getItem(workspaceKey) || "null");
+        const previousDefault = "ドキュメント/教科書/UnrealEngine入門.md";
+        const introSet = new Set(Object.values(introPaths));
+        const workspace = saved ?? {
+          open_files: [intro], active_file: intro, primary_pane_path: intro,
+          secondary_pane_path: null, active_pane_slot: "primary", split_direction: "right",
+          split_ratio: 0.5, sidebar_tab: "files", sidebar_collapsed: false, sidebar_width: 260,
+          sidebar_tab_order: [], file_scroll_positions: {}, file_top_lines: {},
+          file_view_modes: {}, file_last_non_reading_view_modes: {},
+        };
+        // Replace the seeded Unreal guide when restoring an older Pages-demo workspace.
+        const isIntro = (path: string) => path === previousDefault || introSet.has(path);
+        if (isIntro(workspace.active_file) || isIntro(workspace.primary_pane_path)) {
+          workspace.open_files = (workspace.open_files || []).map((path: string) => isIntro(path) ? intro : path);
+          workspace.active_file = isIntro(workspace.active_file) ? intro : workspace.active_file;
+          workspace.primary_pane_path = isIntro(workspace.primary_pane_path) ? intro : workspace.primary_pane_path;
+        }
+        result = workspace;
+        break;
+      }
       case "save_workspace": localStorage.setItem(workspaceKey, JSON.stringify(args.workspace ?? {})); result = undefined; break;
       case "list_plugins": case "list_themes": case "list_css_snippets": result = []; break;
       case "read_binary_file": {

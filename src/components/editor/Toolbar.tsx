@@ -17,6 +17,7 @@ import { getMarkerPalette } from "./markerColors";
 import { ImagePicker } from "./ImagePicker";
 import { requestViewModeChange } from "../../utils/editMode";
 import { openImageInPhotoCraft } from "../../utils/photoCraft";
+import { openPdfInPrintCraft } from "../../utils/printCraft";
 
 interface ToolbarButton {
   command: string;
@@ -91,6 +92,7 @@ export const Toolbar: Component = () => {
   const [showMarkerMenu, setShowMarkerMenu] = createSignal(false);
   const [showImagePicker, setShowImagePicker] = createSignal(false);
   const [showPhotoCraftLicense, setShowPhotoCraftLicense] = createSignal(false);
+  const [showPrintCraftLicense, setShowPrintCraftLicense] = createSignal(false);
   const [overflowIndex, setOverflowIndex] = createSignal<number>(-1);
   const [headingMenuPos, setHeadingMenuPos] = createSignal({ x: 0, y: 0 });
   const [markerMenuPos, setMarkerMenuPos] = createSignal({ x: 0, y: 0 });
@@ -145,11 +147,18 @@ export const Toolbar: Component = () => {
   };
 
   const isImageFile = () => vaultStore.activeFile()?.kind === "image";
-  const currentViewMode = () => isImageFile()
+  const isPdfFile = () => /\.pdf$/i.test(vaultStore.activeFile()?.path ?? "");
+  const currentViewMode = () => isImageFile() || isPdfFile()
     ? "reading"
     : editorStore.getViewModeForFile(vaultStore.activeFile()?.path ?? null);
   const activePath = () => vaultStore.activeFile()?.path ?? null;
-  const modeButtons = createMemo(() => isImageFile()
+  const modeButtons = createMemo(() => isPdfFile()
+    ? [
+        { mode: "reading" as const, label: t("context.readingView") },
+        { mode: "printcraft-edit" as const, label: t("printcraft.editButton") },
+        { mode: "printcraft-license" as const, label: t("printcraft.licenseButton") },
+      ]
+    : isImageFile()
     ? [
         { mode: "reading" as const, label: t("context.readingView") },
         { mode: "live-preview" as const, label: t("context.editMode") },
@@ -161,8 +170,12 @@ export const Toolbar: Component = () => {
         { mode: "source" as const, label: t("context.sourceMode") },
       ]);
   const openPhotoCraftLicense = () => setShowPhotoCraftLicense(true);
-  const selectMode = (mode: "reading" | "live-preview" | "source") => {
+  const selectMode = (mode: "reading" | "live-preview" | "source" | "printcraft-edit") => {
     const path = activePath();
+    if (isPdfFile()) {
+      if (mode === "printcraft-edit" && path) openPdfInPrintCraft(path);
+      return;
+    }
     if (isImageFile()) {
       if (mode === "live-preview" && path) openImageInPhotoCraft(path);
       return;
@@ -288,7 +301,7 @@ export const Toolbar: Component = () => {
         "flex-shrink": "0",
       }}
     >
-      <Show when={!isImageFile()}>
+      <Show when={!isImageFile() && !isPdfFile()}>
         <div
           ref={itemsRef}
           style={{
@@ -354,7 +367,7 @@ export const Toolbar: Component = () => {
           "align-items": "center",
           gap: "2px",
           "flex-shrink": "0",
-          "margin-left": isImageFile() ? "auto" : "4px",
+          "margin-left": isImageFile() || isPdfFile() ? "auto" : "4px",
         }}
       >
         <Show when={!isImageFile() && overflowIndex() >= 0}>
@@ -403,10 +416,14 @@ export const Toolbar: Component = () => {
         <For each={modeButtons()}>{({ mode, label }) => {
           const selected = () => mode === "photocraft-license"
             ? showPhotoCraftLicense()
+            : mode === "printcraft-license"
+              ? showPrintCraftLicense()
             : currentViewMode() === mode;
           return <button
             onClick={() => mode === "photocraft-license"
               ? openPhotoCraftLicense()
+              : mode === "printcraft-license"
+                ? setShowPrintCraftLicense(true)
               : selectMode(mode)}
             title={label}
             aria-pressed={selected()}
@@ -421,6 +438,28 @@ export const Toolbar: Component = () => {
           >{label}</button>;
         }}</For>
       </div>
+
+      <Show when={showPrintCraftLicense()}>
+        <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowPrintCraftLicense(false); }} style={{ position: "fixed", inset: "0", display: "flex", "align-items": "center", "justify-content": "center", padding: "20px", background: "rgba(0,0,0,.58)", "z-index": "20000" }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="printcraft-license-title" style={{ width: "min(560px, 100%)", padding: "22px", color: "var(--mz-text-primary)", background: "var(--mz-bg-secondary)", border: "1px solid var(--mz-border-strong)", "border-radius": "var(--mz-radius-lg)", "box-shadow": "0 20px 60px rgba(0,0,0,.45)" }}>
+            <div style={{ display: "flex", "align-items": "center", gap: "12px", "margin-bottom": "16px" }}>
+              <h2 id="printcraft-license-title" style={{ margin: "0", flex: "1", "font-size": "var(--mz-font-size-lg)" }}>{t("printcraft.licenseTitle")}</h2>
+              <button type="button" title={t("common.close")} aria-label={t("common.close")} onClick={() => setShowPrintCraftLicense(false)} style={{ ...iconButtonStyle, border: "1px solid var(--mz-border)", "border-radius": "var(--mz-radius-sm)" }}>×</button>
+            </div>
+            <p style={{ "line-height": "1.6", color: "var(--mz-text-secondary)" }}>{t("printcraft.licenseSummary")}</p>
+            <h3 style={{ "margin-bottom": "6px", "font-size": "var(--mz-font-size-md)" }}>{t("printcraft.mindzjChangesTitle")}</h3>
+            <p style={{ "line-height": "1.6", color: "var(--mz-text-secondary)" }}>{t("printcraft.mindzjChanges")}</p>
+            <div style={{ display: "flex", "flex-wrap": "wrap", gap: "8px", "margin-top": "18px" }}>
+              <a href="https://github.com/storytold/printcraft" target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("printcraft.upstreamLink")}</a>
+              <a href={printCraftLicenseUrl("LICENSE-MIT")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>MIT License</a>
+              <a href={printCraftLicenseUrl("LICENSE-APACHE")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>Apache-2.0</a>
+              <a href={printCraftLicenseUrl("NOTICE")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>NOTICE</a>
+              <a href={printCraftLicenseUrl("ATTRIBUTION.md")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("printcraft.attributionLink")}</a>
+              <a href={printCraftLicenseUrl("OFL-BIZUDPGothic.txt")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("printcraft.japaneseFontLicense")}</a>
+            </div>
+          </section>
+        </div>
+      </Show>
 
       <Show when={showPhotoCraftLicense()}>
         <div
@@ -484,6 +523,7 @@ export const Toolbar: Component = () => {
               <a href={photoCraftLicenseUrl("LICENSE-APACHE")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>Apache-2.0</a>
               <a href={photoCraftLicenseUrl("NOTICE")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>NOTICE</a>
               <a href={photoCraftLicenseUrl("ATTRIBUTION.md")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("photocraft.attributionLink")}</a>
+              <a href={photoCraftLicenseUrl("assets/fonts/OFL-BIZUDPGothic.txt")} target="_blank" rel="noreferrer" style={licenseLinkStyle}>{t("printcraft.japaneseFontLicense")}</a>
             </div>
           </section>
         </div>
@@ -638,6 +678,11 @@ export const Toolbar: Component = () => {
 function photoCraftLicenseUrl(fileName: string): string {
   const appBase = new URL(import.meta.env.BASE_URL, window.location.origin);
   return new URL(`photocraft/${fileName}`, appBase).toString();
+}
+
+function printCraftLicenseUrl(fileName: string): string {
+  const appBase = new URL(import.meta.env.BASE_URL, window.location.origin);
+  return new URL(`printcraft/${fileName}`, appBase).toString();
 }
 
 const licenseLinkStyle = {

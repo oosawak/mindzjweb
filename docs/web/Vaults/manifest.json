@@ -25,6 +25,30 @@
       "title": "適当なゲームの打ち合わせ"
     },
     {
+      "path": "test/MindZJWeb-de.md",
+      "title": "Über MindZJWeb"
+    },
+    {
+      "path": "test/MindZJWeb-en.md",
+      "title": "About MindZJWeb"
+    },
+    {
+      "path": "test/MindZJWeb-es.md",
+      "title": "Acerca de MindZJWeb"
+    },
+    {
+      "path": "test/MindZJWeb-fr.md",
+      "title": "À propos de MindZJWeb"
+    },
+    {
+      "path": "test/MindZJWeb-ja.md",
+      "title": "MindZJWeb について"
+    },
+    {
+      "path": "test/MindZJWeb-zh-CN.md",
+      "title": "关于 MindZJWeb"
+    },
+    {
       "path": "test/ゲーム制作/ARISA-Quest/仕様書/New note.md",
       "title": "New note"
     },
@@ -60,6 +84,12 @@
     "test/diary/2026/10/2026-10-01_minutes_適当なゲームの打ち合わせ_大澤公志郎.md",
     "test/diary/2026/10/2026-10-01_report_ｘｘｘゲームの作業_大澤公志郎.md",
     "test/diary/2026/10/2026-10-01_report_適当なゲームの打ち合わせ_大澤公志郎.md",
+    "test/MindZJWeb-de.md",
+    "test/MindZJWeb-en.md",
+    "test/MindZJWeb-es.md",
+    "test/MindZJWeb-fr.md",
+    "test/MindZJWeb-ja.md",
+    "test/MindZJWeb-zh-CN.md",
     "test/ゲーム制作/ARISA-Quest/リソース/３ｄ/Untitled.glb",
     "test/ゲーム制作/ARISA-Quest/リソース/音楽/曲 1.wav",
     "test/ゲーム制作/ARISA-Quest/リソース/画像/Image_1.jpg",

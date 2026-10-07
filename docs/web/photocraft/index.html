@@ -6,8 +6,8 @@
   <title>PhotoCraft</title>
 
 <script type="module">
-import init, * as bindings from './photocraft-web-f7e52f1e0c98c539.js';
-const wasm = await init({ module_or_path: './photocraft-web-f7e52f1e0c98c539_bg.wasm' });
+import init, * as bindings from './photocraft-web-e5499c3100c3affc.js';
+const wasm = await init({ module_or_path: './photocraft-web-e5499c3100c3affc_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -22,7 +22,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
     #photocraft_loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       color: #b8b8b8; font: 14px system-ui, sans-serif; pointer-events: none; }
   </style>
-<link rel="modulepreload" href="./photocraft-web-f7e52f1e0c98c539.js" crossorigin="anonymous" integrity="sha384-kdVfw4r7yR1rAkDKNx4CyrSxwgV8NcQ5+oYLmmDjou9Gjt1O7dgGdesJxkEX0XLH"><link rel="preload" href="./photocraft-web-f7e52f1e0c98c539_bg.wasm" crossorigin="anonymous" integrity="sha384-HNWHFP2nL1I7fc31p4r1kIQE5WIgCRfP0bZo6on7KGmzQXKcfgHL6+6Cx9eg4HXz" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="./photocraft-web-e5499c3100c3affc.js" crossorigin="anonymous" integrity="sha384-kdVfw4r7yR1rAkDKNx4CyrSxwgV8NcQ5+oYLmmDjou9Gjt1O7dgGdesJxkEX0XLH"><link rel="preload" href="./photocraft-web-e5499c3100c3affc_bg.wasm" crossorigin="anonymous" integrity="sha384-odJGdYCKXqL9TLGvklrp2tcESHUTWuGhwa6fMImOCk5RtOkeKLH+ABq2d5TFkN3F" as="fetch" type="application/wasm"></head>
 <body>
   <canvas id="photocraft_canvas"></canvas>
   <div id="photocraft_loading">Loading PhotoCraft&hellip;</div>

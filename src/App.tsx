@@ -99,9 +99,10 @@ import { getClientPlatform } from "./utils/platform";
 type SidebarTab = "files" | "outline" | "search" | "calendar";
 type SplitDirection = "left" | "right" | "up" | "down";
 type PaneSlot = "primary" | "secondary";
-type PhotoCraftSession = {
+type EmbeddedEditorSession = {
     url: string;
     fileName: string;
+    editor: "PhotoCraft" | "MindZJ PDF";
     close: () => void;
 };
 type AiPanelModelOption = {
@@ -399,8 +400,8 @@ const App: Component = () => {
     const [aiHistoryPositionReady, setAiHistoryPositionReady] =
         createSignal(false);
     const [sidebarTab, setSidebarTab] = createSignal<SidebarTab>("files");
-    const [photoCraftSession, setPhotoCraftSession] =
-        createSignal<PhotoCraftSession | null>(null);
+    const [embeddedEditorSession, setEmbeddedEditorSession] =
+        createSignal<EmbeddedEditorSession | null>(null);
     const [sidebarCollapsed, setSidebarCollapsed] = createSignal(false);
     const [showVaultMenu, setShowVaultMenu] = createSignal(false);
     const [sortMode, setSortMode] = createSignal<SortMode>("custom");
@@ -1486,15 +1487,23 @@ const App: Component = () => {
         (window as any).__mindzj_flush_workspace = flushWorkspaceNow;
         (window as any).__mindzj_switch_open_tab = switchOpenTab;
         const handleOpenPhotoCraft = (event: Event) => {
-            const session = (event as CustomEvent<PhotoCraftSession>).detail;
+            const session = (event as CustomEvent<EmbeddedEditorSession>).detail;
             if (!session?.url) return;
-            photoCraftSession()?.close();
-            setPhotoCraftSession(session);
+            embeddedEditorSession()?.close();
+            setEmbeddedEditorSession(session);
+        };
+        const handleOpenPrintCraft = (event: Event) => {
+            const session = (event as CustomEvent<EmbeddedEditorSession>).detail;
+            if (!session?.url) return;
+            embeddedEditorSession()?.close();
+            setEmbeddedEditorSession(session);
         };
         window.addEventListener("mindzj:open-photocraft", handleOpenPhotoCraft);
+        window.addEventListener("mindzj:open-printcraft", handleOpenPrintCraft);
         onCleanup(() => {
             window.removeEventListener("mindzj:open-photocraft", handleOpenPhotoCraft);
-            photoCraftSession()?.close();
+            window.removeEventListener("mindzj:open-printcraft", handleOpenPrintCraft);
+            embeddedEditorSession()?.close();
         });
         document.body.style.removeProperty("zoom");
         document.documentElement.style.removeProperty("font-size");
@@ -4472,7 +4481,7 @@ const App: Component = () => {
                             {/* Editor area — uses createMemo to derive stable values so
                             PluginViewHost is NOT destroyed/recreated on every save. */}
                             <Show
-                                when={photoCraftSession()}
+                                when={embeddedEditorSession()}
                                 fallback={
                                     <>
                                     <Show
@@ -4494,6 +4503,7 @@ const App: Component = () => {
                                 <Show
                                     when={
                                         vaultStore.activeFile()?.kind === "image" ||
+                                        /\.pdf$/i.test(vaultStore.activeFile()?.path ?? "") ||
                                         ((settingsStore.settings()
                                             .show_markdown_toolbar ||
                                             editorStore.getViewModeForFile(
@@ -4601,15 +4611,15 @@ const App: Component = () => {
                                             "font-size": "var(--mz-font-size-sm)",
                                         }}>
                                         <span style={{ flex: "1", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
-                                            PhotoCraft · {photoCraftSession()!.fileName}
+                                            {embeddedEditorSession()!.editor} · {embeddedEditorSession()!.fileName}
                                         </span>
                                         <button
                                             type="button"
                                             title={t("common.close")}
                                             aria-label={t("common.close")}
                                             onClick={() => {
-                                                photoCraftSession()?.close();
-                                                setPhotoCraftSession(null);
+                                                embeddedEditorSession()?.close();
+                                                setEmbeddedEditorSession(null);
                                             }}
                                             style={{
                                                 width: "26px",
@@ -4627,8 +4637,8 @@ const App: Component = () => {
                                         </button>
                                     </div>
                                     <iframe
-                                        src={photoCraftSession()!.url}
-                                        title={`PhotoCraft — ${photoCraftSession()!.fileName}`}
+                                        src={embeddedEditorSession()!.url}
+                                        title={`${embeddedEditorSession()!.editor} — ${embeddedEditorSession()!.fileName}`}
                                         allow="clipboard-read; clipboard-write"
                                         style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
                                     />
