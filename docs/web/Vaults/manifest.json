@@ -201,6 +201,10 @@
       "title": "設計変更記録"
     },
     {
+      "path": "Samples/Sample.md",
+      "title": "Unity Web API サーバー構築資料 — Rust版"
+    },
+    {
       "path": "test/diary/2026/10/2026-10-01_minutes_ｘｘｘ_ｘｘｘ.md",
       "title": "ｘｘｘ"
     },
@@ -1034,7 +1038,13 @@
     "Samples/Sample-ja/業界別サンプル.md",
     "Samples/Sample-ja/製造・建築/案件概要.md",
     "Samples/Sample-ja/製造・建築/設計変更記録.md",
+    "Samples/Sample.glb",
+    "Samples/Sample.md",
     "Samples/Sample.mp4",
+    "Samples/Sample.pdf",
+    "Samples/Sample.png",
+    "Samples/Sample.wav",
+    "Samples/Sample2.png",
     "test/diary/2026/10/2026-10-01_minutes_ｘｘｘ_ｘｘｘ.md",
     "test/diary/2026/10/2026-10-01_minutes_適当なゲームの打ち合わせ_大澤公志郎.md",
     "test/diary/2026/10/2026-10-01_report_ｘｘｘゲームの作業_大澤公志郎.md",
