@@ -4,7 +4,7 @@ import { toVaultAssetUrl } from "./vaultPaths";
 import { t } from "../i18n";
 
 type AudioMassWindow = Window & typeof globalThis & {
-  PKAudioEditor?: { engine?: { LoadFile: (input: { files: File[] }) => void } };
+  PKAudioEditor?: { engine?: { LoadArrayBuffer?: (input: Blob) => void } };
 };
 
 /** Open the bundled AudioMass editor with a Vault audio file and save exports back beside it. */
@@ -78,7 +78,7 @@ export function openAudioInAudioMass(relativePath: string): void {
     const loadWhenReady = () => {
       if (disposed || frame.contentDocument !== childDocument || imported) return;
       const editor = child.PKAudioEditor;
-      if (!editor?.engine?.LoadFile) {
+      if (!editor?.engine?.LoadArrayBuffer) {
         const timer = window.setTimeout(() => {
           timers.delete(timer);
           loadWhenReady();
@@ -92,9 +92,10 @@ export function openAudioInAudioMass(relativePath: string): void {
           if (!response.ok) throw new Error(`Audio request failed (${response.status})`);
           return response.blob();
         })
-        .then((blob) => editor.engine!.LoadFile({
-          files: [new child.File([blob], fileName, { type: blob.type || "application/octet-stream" })],
-        }))
+        .then((blob) => {
+          if (blob.size === 0) throw new Error("The selected audio file is empty");
+          editor.engine!.LoadArrayBuffer!(blob);
+        })
         .catch((error) => {
           console.error("Could not open the selected audio in AudioMass:", error);
           document.dispatchEvent(new CustomEvent("mindzj:show-toast", {
