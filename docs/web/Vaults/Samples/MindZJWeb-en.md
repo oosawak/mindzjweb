@@ -20,4 +20,4 @@ Select a note in the left sidebar to read it. Choose Edit to make changes, then 
 
 ## Industry samples
 
-Open the [Sample folder](Sample/業界別サンプル.md) for fictional notes from game development, software, video and design, education and research, and manufacturing and construction.
+Open the [English industry samples](Sample-en/Industry%20Samples.md) for fictional notes from game development, software, video and design, education and research, and manufacturing and construction. Japanese samples are available in the [Japanese Sample folder](Sample/業界別サンプル.md).

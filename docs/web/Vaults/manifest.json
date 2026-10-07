@@ -53,6 +53,58 @@
       "title": "关于 MindZJWeb"
     },
     {
+      "path": "Samples/Sample-en/Education and Research/Lesson Plan.md",
+      "title": "Education and Research: Local Water Study"
+    },
+    {
+      "path": "Samples/Sample-en/Education and Research/Research Notes.md",
+      "title": "Research Notes: Organizing Observation Data"
+    },
+    {
+      "path": "Samples/Sample-en/Game Development/Daily Report.md",
+      "title": "Daily Report: Game Development Sample"
+    },
+    {
+      "path": "Samples/Sample-en/Game Development/Delivery Quest Specification.md",
+      "title": "Delivery Quest: A Letter for the Lighthouse"
+    },
+    {
+      "path": "Samples/Sample-en/Game Development/Project Overview.md",
+      "title": "Game Development: Starbound Mail Service"
+    },
+    {
+      "path": "Samples/Sample-en/Game Development/Team Meeting.md",
+      "title": "Game Development Team Meeting"
+    },
+    {
+      "path": "Samples/Sample-en/Industry Samples.md",
+      "title": "Industry Samples"
+    },
+    {
+      "path": "Samples/Sample-en/Manufacturing and Construction/Design Change Record.md",
+      "title": "Design Change Record"
+    },
+    {
+      "path": "Samples/Sample-en/Manufacturing and Construction/Project Overview.md",
+      "title": "Manufacturing and Construction: Adjustable Workbench Upgrade"
+    },
+    {
+      "path": "Samples/Sample-en/Software Development/Booking API Specification.md",
+      "title": "Booking API Specification (Sample)"
+    },
+    {
+      "path": "Samples/Sample-en/Software Development/Incident and Issue Notes.md",
+      "title": "Incident and Issue Notes"
+    },
+    {
+      "path": "Samples/Sample-en/Software Development/Service Overview.md",
+      "title": "Software Development: Equipment Booking Service"
+    },
+    {
+      "path": "Samples/Sample-en/Video and Design/Production Brief.md",
+      "title": "Video and Design: Community Event Promo"
+    },
+    {
       "path": "Samples/Sample/ゲーム開発/チーム定例.md",
       "title": "ゲーム開発チーム定例"
     },
@@ -207,6 +259,19 @@
     "Samples/MindZJWeb-fr.md",
     "Samples/MindZJWeb-ja.md",
     "Samples/MindZJWeb-zh-CN.md",
+    "Samples/Sample-en/Education and Research/Lesson Plan.md",
+    "Samples/Sample-en/Education and Research/Research Notes.md",
+    "Samples/Sample-en/Game Development/Daily Report.md",
+    "Samples/Sample-en/Game Development/Delivery Quest Specification.md",
+    "Samples/Sample-en/Game Development/Project Overview.md",
+    "Samples/Sample-en/Game Development/Team Meeting.md",
+    "Samples/Sample-en/Industry Samples.md",
+    "Samples/Sample-en/Manufacturing and Construction/Design Change Record.md",
+    "Samples/Sample-en/Manufacturing and Construction/Project Overview.md",
+    "Samples/Sample-en/Software Development/Booking API Specification.md",
+    "Samples/Sample-en/Software Development/Incident and Issue Notes.md",
+    "Samples/Sample-en/Software Development/Service Overview.md",
+    "Samples/Sample-en/Video and Design/Production Brief.md",
     "Samples/Sample/ゲーム開発/チーム定例.md",
     "Samples/Sample/ゲーム開発/プロジェクト概要.md",
     "Samples/Sample/ゲーム開発/日報.md",
@@ -234,6 +299,12 @@
     "Samples/Sample/業界別サンプル.md",
     "Samples/Sample/製造・建築/案件概要.md",
     "Samples/Sample/製造・建築/設計変更記録.md",
+    "Samples/Web Game・Application/animal-puzzle/index.html",
+    "Samples/Web Game・Application/animal-puzzle/wasm/package.json",
+    "Samples/Web Game・Application/animal-puzzle/wasm/wasm_app_bg.wasm",
+    "Samples/Web Game・Application/animal-puzzle/wasm/wasm_app_bg.wasm.d.ts",
+    "Samples/Web Game・Application/animal-puzzle/wasm/wasm_app.d.ts",
+    "Samples/Web Game・Application/animal-puzzle/wasm/wasm_app.js",
     "Samples/Web Game・Application/ArcadiaMusicForge/assets/arcadia-app-icon.png",
     "Samples/Web Game・Application/ArcadiaMusicForge/assets/arcadia-title-banner.png",
     "Samples/Web Game・Application/ArcadiaMusicForge/index.html",
