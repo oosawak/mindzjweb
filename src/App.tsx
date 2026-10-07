@@ -4474,6 +4474,7 @@ const App: Component = () => {
                                     when={
                                         vaultStore.activeFile()?.kind === "image" ||
                                         /\.pdf$/i.test(vaultStore.activeFile()?.path ?? "") ||
+                                        /\.(mp4|mov|m4v|webm|mkv|avi|wmv|mpg|mpeg|mxf|mts|m2ts)$/i.test(vaultStore.activeFile()?.path ?? "") ||
                                         ((settingsStore.settings()
                                             .show_markdown_toolbar ||
                                             editorStore.getViewModeForFile(
