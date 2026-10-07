@@ -1759,7 +1759,7 @@ const App: Component = () => {
             }
         } else if (isPagesDemo()) {
             try {
-                await vaultStore.openVault("Vaults/test", "test");
+                await vaultStore.openVault("Vaults/Samples", "Samples");
             } catch (e) {
                 console.error("Failed to open the Pages sample Vault:", e);
             }
@@ -3865,45 +3865,6 @@ const App: Component = () => {
                                             </>
                                             )}
                                         </For>
-                                        <button
-                                            type="button"
-                                            onClick={() => void startScreenshot()}
-                                            title="スクリーンショット"
-                                            aria-label="スクリーンショット"
-                                            style={{
-                                                width: "30px",
-                                                height: "30px",
-                                                display: "flex",
-                                                "align-items": "center",
-                                                "justify-content": "center",
-                                                border: "none",
-                                                "border-radius": "var(--mz-radius-sm)",
-                                                background: "transparent",
-                                                color: "var(--mz-text-muted)",
-                                                cursor: "pointer",
-                                                transition: "all 100ms",
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.background =
-                                                    "var(--mz-bg-hover)";
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.background =
-                                                    "transparent";
-                                            }}>
-                                            <svg
-                                                width="16"
-                                                height="16"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round">
-                                                <path d="M14.5 4h-5L8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-1.5-3z" />
-                                                <circle cx="12" cy="13" r="3" />
-                                            </svg>
-                                        </button>
                                     </div>
                                 </div>
 

@@ -16,7 +16,7 @@ const introPaths: Record<string, string> = {
 };
 
 let manifestPromise: Promise<Manifest> | undefined;
-let activeVault = "test";
+let activeVault = "Samples";
 const files = (): Record<string, LocalFile> => {
   try { return JSON.parse(localStorage.getItem(localKey) || "{}"); }
   catch { return {}; }
@@ -96,7 +96,7 @@ export class PagesDemoBackend implements MindZjBackend {
         result = roots.map((name) => ({ name, path: `Vaults/${name}`, lastOpened: 0 })); break;
       }
       case "open_vault": {
-        const path = String(args.path ?? ""); activeVault = path.split("/").filter(Boolean).pop() || "test";
+        const path = String(args.path ?? ""); activeVault = path.split("/").filter(Boolean).pop() || "Samples";
         result = { name: String(args.name || activeVault), path: `Vaults/${activeVault}`, created_at: timestamp(), last_opened: timestamp() }; break;
       }
       case "get_file_tree": result = makeTree(paths, directories); break;
