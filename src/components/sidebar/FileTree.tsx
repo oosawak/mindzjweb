@@ -1492,7 +1492,15 @@ const FolderItem: Component<{
                         setFolderOpen(props.entry.relative_path, props.depth, true);
                         props.onFileClick(indexFile.relative_path);
                     } else {
-                        setFolderOpen(props.entry.relative_path, props.depth, !isOpen());
+                        const shortcutFiles = props.entry.children?.filter(
+                            (child) => !child.is_dir && /\.url$/i.test(child.name),
+                        ) ?? [];
+                        if (shortcutFiles.length === 1) {
+                            setFolderOpen(props.entry.relative_path, props.depth, true);
+                            props.onFileClick(shortcutFiles[0].relative_path);
+                        } else {
+                            setFolderOpen(props.entry.relative_path, props.depth, !isOpen());
+                        }
                     }
                 }}
                 onContextMenu={props.onContextMenu}
