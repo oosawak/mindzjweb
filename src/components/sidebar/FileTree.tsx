@@ -48,7 +48,7 @@ export { allFoldersCollapsed };
 function defaultFolderOpen(depth: number, mode = folderVisibilityMode()) {
     if (mode === "collapse") return false;
     if (mode === "expand") return true;
-    return depth < 1;
+    return false;
 }
 
 function syncAllFoldersCollapsed(
@@ -1483,9 +1483,18 @@ const FolderItem: Component<{
                 onMouseDown={(e) => {
                     if (e.button === 0) startDrag(e, props.entry.relative_path, true, props.entry.name, e.currentTarget);
                 }}
-                onClick={() =>
-                    setFolderOpen(props.entry.relative_path, props.depth, !isOpen())
-                }
+                onClick={(event) => {
+                    if ((event.target as HTMLElement).closest("[data-folder-toggle]")) return;
+                    const indexFile = props.entry.children?.find(
+                        (child) => !child.is_dir && /^(index\.md|index\.html)$/i.test(child.name),
+                    );
+                    if (indexFile) {
+                        setFolderOpen(props.entry.relative_path, props.depth, true);
+                        props.onFileClick(indexFile.relative_path);
+                    } else {
+                        setFolderOpen(props.entry.relative_path, props.depth, !isOpen());
+                    }
+                }}
                 onContextMenu={props.onContextMenu}
                 style={{
                     display: "flex",
@@ -1501,10 +1510,19 @@ const FolderItem: Component<{
                 onMouseEnter={(e) => { if (!dragSource()) e.currentTarget.style.background = "var(--mz-bg-hover)"; }}
                 onMouseLeave={(e) => { if (!dragSource()) e.currentTarget.style.background = ""; }}
             >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
-                    style={{ transform: isOpen() ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 150ms", "flex-shrink": "0", "pointer-events": "none" }}>
-                    <path d="M4 2.5L7.5 6L4 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
+                <span
+                    data-folder-toggle="true"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setFolderOpen(props.entry.relative_path, props.depth, !isOpen());
+                    }}
+                    style={{ display: "flex", "align-items": "center", "flex-shrink": "0", cursor: "pointer" }}
+                >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
+                        style={{ transform: isOpen() ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 150ms", "pointer-events": "none" }}>
+                        <path d="M4 2.5L7.5 6L4 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </span>
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ "flex-shrink": "0", "pointer-events": "none" }}>
                     <path d="M2 4.5C2 3.67 2.67 3 3.5 3H6.17a1.5 1.5 0 011.06.44L8.5 4.7a.5.5 0 00.35.15H12.5c.83 0 1.5.67 1.5 1.5v5.15c0 .83-.67 1.5-1.5 1.5h-9A1.5 1.5 0 012 11.5V4.5z"
                         fill={isOpen() ? "var(--mz-accent)" : "var(--mz-text-muted)"} opacity={isOpen() ? "0.7" : "0.5"} />
