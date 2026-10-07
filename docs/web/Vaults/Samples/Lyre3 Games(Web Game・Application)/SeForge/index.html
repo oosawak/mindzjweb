@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#101216">
+<title>Game SE Forge v0.2</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0d1015; --panel:#171c24; --panel2:#222a35; --line:#333d4b;
+  --accent:#7bdcff; --text:#f3f6f8; --muted:#9ba7b4; --good:#83f3b1;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#0b0e12,#111722);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:5;padding:16px 18px;background:rgba(13,16,21,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:21px}
+header p{margin:4px 0 0;color:var(--muted);font-size:12px}
+main{max-width:760px;margin:auto;padding:14px}
+.card{background:rgba(23,28,36,.96);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+h2,h3{margin:0 0 10px}
+button,select,input{font:inherit}
+button{border:0;border-radius:12px;padding:13px 14px;font-weight:800;background:var(--panel2);color:var(--text);min-height:48px}
+button.primary{background:var(--accent);color:#061016}
+button.keep.active{background:var(--good);color:#07130c}
+button:disabled{opacity:.4}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1}
+canvas{display:block;width:100%;height:130px;background:#090c10;border-radius:12px;margin-top:12px;border:1px solid #202733}
+label{display:block;margin-top:12px;font-size:13px;color:var(--muted)}
+input[type=range]{width:100%}
+select{width:100%;margin-top:6px;padding:12px;background:#0f141b;color:var(--text);border:1px solid var(--line);border-radius:10px}
+.value{float:right;color:var(--accent);font-weight:700}
+.status,.small{color:var(--muted);font-size:12px;line-height:1.55}
+.status{margin-top:10px}
+.variant{padding:12px;background:var(--panel2);border:1px solid #303a48;border-radius:14px;margin-top:9px}
+.variant-title{font-weight:800;margin-bottom:3px}
+.variant-meta{font-size:11px;color:var(--muted);margin-bottom:8px}
+.variant-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.seedbox{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0b0f14;border:1px solid var(--line);padding:10px;border-radius:10px;margin-top:10px;font-size:12px;color:#cfefff}
+.badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;background:#263240;color:#bfeeff;margin-right:5px}
+.footer-note{padding-bottom:28px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎙 Game SE Forge <span class="badge">v0.2</span></h1>
+  <p>自然音・物音を強く変形して、ゲームSEへ</p>
+</header>
+
+<main>
+<section class="card">
+  <h3>1. 録音</h3>
+  <div class="row">
+    <button id="recordBtn" class="primary">● 録音開始</button>
+    <button id="stopBtn" disabled>■ 停止</button>
+    <button id="playOriginalBtn" disabled>▶ 元音</button>
+  </div>
+  <canvas id="waveform" width="900" height="220"></canvas>
+  <div id="status" class="status">マイクから自然音や物音を録音してください。</div>
+</section>
+
+<section class="card">
+  <h3>2. 変化設定</h3>
+
+  <label>素材カテゴリ</label>
+  <select id="sourceType">
+    <option value="auto">Auto / その他</option>
+    <option value="nature">Nature / 自然音</option>
+    <option value="impact">Impact / 打撃音</option>
+    <option value="metal">Metal / 金属</option>
+    <option value="water">Water / 水</option>
+    <option value="voice">Voice / 声</option>
+  </select>
+
+  <label>Intensity <span id="intensityValue" class="value">82</span></label>
+  <input id="intensity" type="range" min="0" max="100" value="82">
+
+  <label>Randomness <span id="randomnessValue" class="value">70</span></label>
+  <input id="randomness" type="range" min="0" max="100" value="70">
+
+  <label>Reverb <span id="reverbValue" class="value">45</span></label>
+  <input id="reverb" type="range" min="0" max="100" value="45">
+
+  <label>Distortion <span id="distortionValue" class="value">55</span></label>
+  <input id="distortion" type="range" min="0" max="100" value="55">
+
+  <div class="seedbox">Seed: <span id="seedValue">---</span></div>
+
+  <button id="generateBtn" class="primary" disabled style="width:100%;margin-top:14px">✨ 12種類のSEを生成</button>
+  <button id="regenBtn" disabled style="width:100%;margin-top:8px">↻ GENERATE AGAIN</button>
+</section>
+
+<section class="card">
+  <h3>3. 生成結果</h3>
+  <div id="variants"><div class="small">録音後に生成してください。</div></div>
+</section>
+
+<section class="card footer-note">
+  <h3>このアプリについて</h3>
+  <div class="small">
+    音声処理はブラウザ内で行い、録音音声を外部サーバーへ送信しません。<br>
+    自分で録音した音、または加工・商用利用が許可された素材を使用してください。<br>
+    GitHub Pages + Android Chrome での利用を想定しています。
+  </div>
+</section>
+</main>
+
+<script>
+let audioContext;
+let mediaRecorder;
+let recordedChunks = [];
+let sourceBuffer = null;
+let currentSource = null;
+let generated = [];
+let kept = new Set();
+let currentSeed = 0;
+
+const $ = id => document.getElementById(id);
+const statusEl = $("status");
+
+function getAudioContext(){
+  if(!audioContext){
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
+}
+function clamp(v,a=-1,b=1){ return Math.max(a,Math.min(b,v)); }
+
+function seededRandom(seed){
+  let t = seed >>> 0;
+  return function(){
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ t >>> 15, 1 | t);
+    r ^= r + Math.imul(r ^ r >>> 7, 61 | r);
+    return ((r ^ r >>> 14) >>> 0) / 4294967296;
+  }
+}
+function newSeed(){
+  currentSeed = (Date.now() ^ Math.floor(Math.random()*0xffffffff)) >>> 0;
+  $("seedValue").textContent = currentSeed;
+  return currentSeed;
+}
+
+$("recordBtn").onclick = async ()=>{
+  try{
+    const ctx = getAudioContext();
+    if(ctx.state === "suspended") await ctx.resume();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+    });
+    recordedChunks = [];
+    let opts = {};
+    if(MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) opts.mimeType="audio/webm;codecs=opus";
+    mediaRecorder = new MediaRecorder(stream, opts);
+
+    mediaRecorder.ondataavailable = e=>{
+      if(e.data && e.data.size>0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.onstop = async ()=>{
+      try{
+        const blob = new Blob(recordedChunks,{type:mediaRecorder.mimeType || "audio/webm"});
+        const arr = await blob.arrayBuffer();
+        sourceBuffer = await ctx.decodeAudioData(arr.slice(0));
+        drawWaveform(sourceBuffer);
+        $("playOriginalBtn").disabled=false;
+        $("generateBtn").disabled=false;
+        $("regenBtn").disabled=false;
+        statusEl.textContent=`録音完了: ${sourceBuffer.duration.toFixed(2)} 秒 / ${sourceBuffer.sampleRate} Hz`;
+      }catch(err){
+        console.error(err);
+        statusEl.textContent="録音データの読み込みに失敗しました: "+err.message;
+      }finally{
+        stream.getTracks().forEach(t=>t.stop());
+      }
+    };
+    mediaRecorder.start();
+    $("recordBtn").disabled=true;
+    $("stopBtn").disabled=false;
+    statusEl.textContent="● 録音中…";
+  }catch(err){
+    console.error(err);
+    statusEl.textContent="マイクを利用できません: "+err.message;
+  }
+};
+
+$("stopBtn").onclick=()=>{
+  if(mediaRecorder && mediaRecorder.state!=="inactive") mediaRecorder.stop();
+  $("recordBtn").disabled=false;
+  $("stopBtn").disabled=true;
+};
+
+function playBuffer(buffer){
+  const ctx=getAudioContext();
+  if(ctx.state==="suspended") ctx.resume();
+  if(currentSource){ try{ currentSource.stop(); }catch(e){} }
+  const src=ctx.createBufferSource();
+  src.buffer=buffer;
+  src.connect(ctx.destination);
+  src.start();
+  currentSource=src;
+}
+$("playOriginalBtn").onclick=()=>sourceBuffer&&playBuffer(sourceBuffer);
+
+function drawWaveform(buffer){
+  const canvas=$("waveform"), c=canvas.getContext("2d"), w=canvas.width,h=canvas.height;
+  c.clearRect(0,0,w,h); c.fillStyle="#090c10"; c.fillRect(0,0,w,h);
+  const data=buffer.getChannelData(0), step=Math.ceil(data.length/w), amp=h/2;
+  c.strokeStyle="#7bdcff"; c.lineWidth=2; c.beginPath();
+  for(let x=0;x<w;x++){
+    let min=1,max=-1;
+    for(let j=0;j<step;j++){
+      const d=data[x*step+j]||0; if(d<min)min=d; if(d>max)max=d;
+    }
+    c.moveTo(x,(1+min)*amp); c.lineTo(x,(1+max)*amp);
+  }
+  c.stroke();
+}
+
+function cloneBuffer(buffer){
+  const ctx=getAudioContext();
+  const out=ctx.createBuffer(buffer.numberOfChannels,buffer.length,buffer.sampleRate);
+  for(let ch=0;ch<buffer.numberOfChannels;ch++) out.copyToChannel(buffer.getChannelData(ch),ch);
+  return out;
+}
+
+function normalizeBuffer(buffer){
+  const out=cloneBuffer(buffer);
+  let max=0;
+  for(let ch=0;ch<out.numberOfChannels;ch++){
+    const d=out.getChannelData(ch);
+    for(let i=0;i<d.length;i++) max=Math.max(max,Math.abs(d[i]));
+  }
+  if(max===0)return out;
+  const g=.96/max;
+  for(let ch=0;ch<out.numberOfChannels;ch++){
+    const d=out.getChannelData(ch);
+    for(let i=0;i<d.length;i++) d[i]*=g;
+  }
+  return out;
+}
+
+function reverseBuffer(buffer){
+  const out=cloneBuffer(buffer);
+  for(let ch=0;ch<out.numberOfChannels;ch++) out.getChannelData(ch).reverse();
+  return out;
+}
+
+function distortBuffer(buffer,amount=10){
+  const out=cloneBuffer(buffer);
+  for(let ch=0;ch<out.numberOfChannels;ch++){
+    const d=out.getChannelData(ch);
+    for(let i=0;i<d.length;i++) d[i]=Math.tanh(d[i]*amount);
+  }
+  return normalizeBuffer(out);
+}
+
+function addNoise(buffer,amount=.05,rand=Math.random){
+  const out=cloneBuffer(buffer);
+  for(let ch=0;ch<out.numberOfChannels;ch++){
+    const d=out.getChannelData(ch);
+    for(let i=0;i<d.length;i++) d[i]=clamp(d[i]+(rand()*2-1)*amount);
+  }
+  return normalizeBuffer(out);
+}
+
+function fadeEdges(buffer,ms=8){
+  const out=cloneBuffer(buffer), n=Math.min(out.length>>1,Math.floor(out.sampleRate*ms/1000));
+  for(let ch=0;ch<out.numberOfChannels;ch++){
+    const d=out.getChannelData(ch);
+    for(let i=0;i<n;i++){
+      const g=i/n; d[i]*=g; d[d.length-1-i]*=g;
+    }
+  }
+  return out;
+}
+
+function glitchBuffer(buffer, pieces=12, rand=Math.random){
+  const out=cloneBuffer(buffer);
+  const len=buffer.length, seg=Math.max(1,Math.floor(len/pieces));
+  for(let ch=0;ch<buffer.numberOfChannels;ch++){
+    const src=buffer.getChannelData(ch), dst=out.getChannelData(ch);
+    for(let p=0;p<pieces;p++){
+      const from=Math.floor(rand()*pieces)*seg;
+      const to=p*seg;
+      const maxN=Math.min(seg,len-to,len-from);
+      for(let i=0;i<maxN;i++) dst[to+i]=src[from+i];
+    }
+  }
+  return fadeEdges(normalizeBuffer(out),3);
+}
+
+async function resample(buffer,rate){
+  rate=Math.max(.18,Math.min(4,rate));
+  const length=Math.max(1,Math.ceil(buffer.length/rate));
+  const ctx=new OfflineAudioContext(buffer.numberOfChannels,length,buffer.sampleRate);
+  const src=ctx.createBufferSource(); src.buffer=buffer; src.playbackRate.value=rate;
+  src.connect(ctx.destination); src.start();
+  return await ctx.startRendering();
+}
+
+async function filterBuffer(buffer,type,frequency,q=1){
+  const ctx=new OfflineAudioContext(buffer.numberOfChannels,buffer.length,buffer.sampleRate);
+  const src=ctx.createBufferSource(), f=ctx.createBiquadFilter();
+  src.buffer=buffer; f.type=type; f.frequency.value=frequency; f.Q.value=q;
+  src.connect(f); f.connect(ctx.destination); src.start();
+  return await ctx.startRendering();
+}
+
+function impulse(ctx,duration=1.5,decay=2.5,rand=Math.random){
+  const length=Math.floor(ctx.sampleRate*duration);
+  const b=ctx.createBuffer(2,length,ctx.sampleRate);
+  for(let ch=0;ch<2;ch++){
+    const d=b.getChannelData(ch);
+    for(let i=0;i<length;i++) d[i]=(rand()*2-1)*Math.pow(1-i/length,decay);
+  }
+  return b;
+}
+
+async function addReverb(buffer,amount=.4,duration=1.7,rand=Math.random){
+  const extra=Math.floor(buffer.sampleRate*duration);
+  const ctx=new OfflineAudioContext(buffer.numberOfChannels,buffer.length+extra,buffer.sampleRate);
+  const src=ctx.createBufferSource(), dry=ctx.createGain(), wet=ctx.createGain(), conv=ctx.createConvolver();
+  src.buffer=buffer; dry.gain.value=1-amount; wet.gain.value=amount; conv.buffer=impulse(ctx,duration,2.4,rand);
+  src.connect(dry); dry.connect(ctx.destination); src.connect(conv); conv.connect(wet); wet.connect(ctx.destination);
+  src.start(); return await ctx.startRendering();
+}
+
+async function addDelay(buffer,delay=.16,feedback=.35,mix=.35){
+  const extra=Math.floor(buffer.sampleRate*1.2);
+  const ctx=new OfflineAudioContext(buffer.numberOfChannels,buffer.length+extra,buffer.sampleRate);
+  const src=ctx.createBufferSource(), d=ctx.createDelay(2), fb=ctx.createGain(), wet=ctx.createGain(), dry=ctx.createGain();
+  src.buffer=buffer; d.delayTime.value=delay; fb.gain.value=feedback; wet.gain.value=mix; dry.gain.value=1-mix;
+  src.connect(dry); dry.connect(ctx.destination); src.connect(d); d.connect(wet); wet.connect(ctx.destination); d.connect(fb); fb.connect(d);
+  src.start(); return await ctx.startRendering();
+}
+
+async function buildVariants(){
+  if(!sourceBuffer)return;
+  const intensity=+$("intensity").value/100;
+  const randomness=+$("randomness").value/100;
+  const reverb=+$("reverb").value/100;
+  const distortion=+$("distortion").value/100;
+  const seed=newSeed(), rand=seededRandom(seed);
+  const base=normalizeBuffer(sourceBuffer);
+
+  $("generateBtn").disabled=true; $("regenBtn").disabled=true;
+  statusEl.textContent="強変化SEを生成中…";
+
+  const out=[];
+  out.push({name:"Clean",meta:"Normalize",buffer:base});
+
+  let tiny=await resample(base,1.5+intensity*1.5+rand()*randomness*.4);
+  tiny=await filterBuffer(tiny,"highpass",700+intensity*1700,0.8);
+  out.push({name:"Tiny",meta:"High Pitch / Short",buffer:normalizeBuffer(tiny)});
+
+  let giant=await resample(base,Math.max(.28,.78-intensity*.45-rand()*randomness*.08));
+  giant=await filterBuffer(giant,"lowpass",1300-intensity*650,1.2);
+  giant=distortBuffer(giant,1.5+distortion*5);
+  out.push({name:"Giant",meta:"Low Pitch / Lowpass / Saturation",buffer:giant});
+
+  let impact=distortBuffer(base,3+distortion*24);
+  impact=addNoise(impact,.01+intensity*.08,rand);
+  impact=await filterBuffer(impact,"lowshelf",140+rand()*100,0.7);
+  out.push({name:"Impact",meta:"Distortion / Noise / Punch",buffer:impact});
+
+  let metal=distortBuffer(base,5+distortion*32);
+  metal=await filterBuffer(metal,"bandpass",1200+rand()*3000,4+intensity*10);
+  metal=await addDelay(metal,.03+rand()*.06,.2+.25*intensity,.22+.2*intensity);
+  out.push({name:"Metal",meta:"Bandpass / Distortion / Short Delay",buffer:normalizeBuffer(metal)});
+
+  let dark=await resample(base,.62-intensity*.22);
+  dark=await filterBuffer(dark,"lowpass",500+rand()*500,1.6);
+  dark=distortBuffer(dark,2+distortion*9);
+  out.push({name:"Dark",meta:"Deep Pitch / Strong Lowpass",buffer:dark});
+
+  let ghost=reverseBuffer(base);
+  ghost=await resample(ghost,.75+rand()*.15);
+  ghost=await addReverb(ghost,.45+reverb*.45,2.2+intensity*1.6,rand);
+  out.push({name:"Ghost",meta:"Reverse / Long Reverb",buffer:normalizeBuffer(ghost)});
+
+  let magic=await resample(base,1.15+intensity*.85+rand()*.25);
+  magic=reverseBuffer(magic);
+  magic=await addDelay(magic,.09+rand()*.17,.25+.25*intensity,.35+.25*intensity);
+  magic=await addReverb(magic,.25+reverb*.45,1.5+intensity,rand);
+  out.push({name:"Magic",meta:"Pitch / Reverse / Delay / Reverb",buffer:normalizeBuffer(magic)});
+
+  let scifi=glitchBuffer(base,8+Math.floor(intensity*18),rand);
+  scifi=distortBuffer(scifi,4+distortion*18);
+  scifi=await filterBuffer(scifi,"bandpass",500+rand()*4500,2+intensity*12);
+  scifi=await addDelay(scifi,.04+rand()*.12,.25+.35*intensity,.25+.35*intensity);
+  out.push({name:"Sci-Fi",meta:"Glitch / Resonant Filter / Delay",buffer:normalizeBuffer(scifi)});
+
+  let glitch=glitchBuffer(base,10+Math.floor(intensity*30),rand);
+  if(rand()>.45) glitch=reverseBuffer(glitch);
+  glitch=await resample(glitch,.55+rand()*1.9);
+  out.push({name:"Glitch",meta:"Chop / Shuffle / Random Rate",buffer:normalizeBuffer(glitch)});
+
+  let explosion=await resample(base,.5-intensity*.15);
+  explosion=distortBuffer(explosion,8+distortion*35);
+  explosion=addNoise(explosion,.04+intensity*.16,rand);
+  explosion=await filterBuffer(explosion,"lowpass",1100+rand()*1000,1);
+  explosion=await addReverb(explosion,.18+reverb*.28,1.1+intensity*.7,rand);
+  out.push({name:"Explosion",meta:"Deep / Distortion / Noise / Tail",buffer:normalizeBuffer(explosion)});
+
+  let monster=await resample(base,.42-intensity*.12);
+  monster=distortBuffer(monster,5+distortion*30);
+  monster=await filterBuffer(monster,"lowpass",900+rand()*700,1.3);
+  monster=await addReverb(monster,.2+reverb*.35,1.4+intensity,rand);
+  out.push({name:"Monster",meta:"Extreme Low Pitch / Distortion / Reverb",buffer:normalizeBuffer(monster)});
+
+  let random=cloneBuffer(base);
+  if(rand()>.5) random=reverseBuffer(random);
+  random=glitchBuffer(random,5+Math.floor(rand()*24),rand);
+  random=await resample(random,.35+rand()*2.6);
+  random=distortBuffer(random,2+rand()*(8+distortion*30));
+  random=addNoise(random,rand()*.12*intensity,rand);
+  if(rand()>.35) random=await addDelay(random,.03+rand()*.25,.15+rand()*.55,.15+rand()*.55);
+  if(rand()>.35) random=await addReverb(random,.15+rand()*.6,1+rand()*2.2,rand);
+  out.push({name:"Random",meta:"Seeded Random Transform",buffer:normalizeBuffer(random)});
+
+  generated=out; kept.clear(); renderVariants();
+  statusEl.textContent=`12種類生成完了 / Seed ${seed}`;
+  $("generateBtn").disabled=false; $("regenBtn").disabled=false;
+}
+
+$("generateBtn").onclick=buildVariants;
+$("regenBtn").onclick=buildVariants;
+
+function renderVariants(){
+  const root=$("variants"); root.innerHTML="";
+  generated.forEach((v,i)=>{
+    const el=document.createElement("div"); el.className="variant";
+    const title=document.createElement("div"); title.className="variant-title";
+    title.textContent=String(i+1).padStart(2,"0")+" "+v.name;
+    const meta=document.createElement("div"); meta.className="variant-meta"; meta.textContent=v.meta;
+    const actions=document.createElement("div"); actions.className="variant-actions";
+
+    const play=document.createElement("button"); play.textContent="▶ 試聴"; play.onclick=()=>playBuffer(v.buffer);
+    const keep=document.createElement("button"); keep.textContent="☆ KEEP"; keep.className="keep";
+    keep.onclick=()=>{
+      if(kept.has(i)){ kept.delete(i); keep.classList.remove("active"); keep.textContent="☆ KEEP"; }
+      else{ kept.add(i); keep.classList.add("active"); keep.textContent="★ KEPT"; }
+    };
+    const save=document.createElement("button"); save.textContent="💾 WAV";
+    save.onclick=()=>saveWav(v.buffer,`se_${String(i+1).padStart(2,"0")}_${v.name.toLowerCase()}_${currentSeed}.wav`);
+
+    actions.append(play,keep,save); el.append(title,meta,actions); root.appendChild(el);
+  });
+}
+
+function audioBufferToWav(buffer){
+  const chs=buffer.numberOfChannels, sr=buffer.sampleRate, len=buffer.length, bps=2, align=chs*bps;
+  const ab=new ArrayBuffer(44+len*align), view=new DataView(ab);
+  const str=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
+  str(0,"RIFF"); view.setUint32(4,36+len*align,true); str(8,"WAVE"); str(12,"fmt ");
+  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,chs,true);
+  view.setUint32(24,sr,true); view.setUint32(28,sr*align,true); view.setUint16(32,align,true);
+  view.setUint16(34,16,true); str(36,"data"); view.setUint32(40,len*align,true);
+  const cd=[]; for(let ch=0;ch<chs;ch++) cd.push(buffer.getChannelData(ch));
+  let o=44;
+  for(let i=0;i<len;i++) for(let ch=0;ch<chs;ch++){
+    let s=clamp(cd[ch][i]); s=s<0?s*0x8000:s*0x7fff; view.setInt16(o,s,true); o+=2;
+  }
+  return ab;
+}
+function saveWav(buffer,filename){
+  const blob=new Blob([audioBufferToWav(buffer)],{type:"audio/wav"});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+["intensity","randomness","reverb","distortion"].forEach(id=>{
+  const input=$(id), out=$(id+"Value");
+  input.oninput=()=>out.textContent=input.value;
+});
+</script>
+</body>
+</html>
