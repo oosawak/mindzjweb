@@ -5,6 +5,7 @@ import { vaultStore } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
 import { getFileExtension } from "../../utils/fileTypes";
 import { toVaultAssetUrl } from "../../utils/vaultPaths";
+import { readInternetShortcutUrl } from "../../utils/openFileRouted";
 import { t } from "../../i18n";
 
 export const FilePreview: Component<{
@@ -14,7 +15,10 @@ export const FilePreview: Component<{
 }> = (props) => {
     const fileName = createMemo(() => displayName(props.filePath));
     const extension = createMemo(() => getFileExtension(props.filePath).toUpperCase() || "FILE");
-    const previewableMedia = createMemo(() => ["HTML", "HTM", "PDF", "MP3", "M4A", "WAV", "OGG", "FLAC", "AAC", "OPUS", "MP4", "M4V", "MOV", "AVI", "MKV", "WEBM", "OGV", "GLB", "GLTF"].includes(extension()));
+    const isInternetShortcut = createMemo(() => extension() === "URL");
+    const [shortcutUrl, setShortcutUrl] = createSignal<string | null>(null);
+    const [shortcutError, setShortcutError] = createSignal("");
+    const previewableMedia = createMemo(() => ["HTML", "HTM", "URL", "PDF", "MP3", "M4A", "WAV", "OGG", "FLAC", "AAC", "OPUS", "MP4", "M4V", "MOV", "AVI", "MKV", "WEBM", "OGV", "GLB", "GLTF"].includes(extension()));
     const isAudio = createMemo(() => ["MP3", "M4A", "WAV", "OGG", "FLAC", "AAC", "OPUS"].includes(extension()));
     const isVideo = createMemo(() => ["MP4", "M4V", "MOV", "AVI", "MKV", "WEBM", "OGV"].includes(extension()));
     const isModel = createMemo(() => ["GLB", "GLTF"].includes(extension()));
@@ -81,6 +85,23 @@ export const FilePreview: Component<{
         editorStore.updateStats("");
         editorStore.setCursorLine(1);
         editorStore.setCursorCol(1);
+    });
+
+    createEffect(() => {
+        if (!isInternetShortcut() || !props.active) return;
+        const relativePath = props.filePath;
+        let cancelled = false;
+        setShortcutUrl(null);
+        setShortcutError("");
+        void readInternetShortcutUrl(relativePath)
+            .then((url) => {
+                if (!cancelled) setShortcutUrl(url);
+            })
+            .catch((error) => {
+                console.error("Could not read Internet Shortcut:", error);
+                if (!cancelled) setShortcutError(t("filePreview.urlShortcutError"));
+            });
+        onCleanup(() => { cancelled = true; });
     });
 
     return (
@@ -185,6 +206,26 @@ export const FilePreview: Component<{
                         </div>
                         </div>}
                     >
+                        <Show when={isInternetShortcut()}>
+                            <Show
+                                when={shortcutUrl()}
+                                fallback={
+                                    <div style={{ flex: "1", display: "grid", "place-items": "center", color: "var(--mz-text-muted)", "font-size": "var(--mz-font-size-sm)" }}>
+                                        {shortcutError() || t("filePreview.urlShortcutLoading")}
+                                    </div>
+                                }
+                            >
+                                {(url) => (
+                                    <iframe
+                                        src={url()}
+                                        title={fileName()}
+                                        sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+                                        referrerPolicy="no-referrer"
+                                        style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
+                                    />
+                                )}
+                            </Show>
+                        </Show>
                         <Show when={extension() === "HTML" || extension() === "HTM"}>
                             <iframe
                                 src={htmlAssetUrl()}

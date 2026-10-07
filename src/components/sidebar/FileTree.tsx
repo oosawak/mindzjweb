@@ -7,7 +7,10 @@ import { editorStore } from "../../stores/editor";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import { displayName } from "../../utils/displayName";
 import { fetchBacklinks, updateBacklinksOnFileRename } from "../../utils/linkUpdater";
-import { openFileRouted } from "../../utils/openFileRouted";
+import {
+    openFileRouted,
+    openInternetShortcutExternally,
+} from "../../utils/openFileRouted";
 import { isMarkdownPath } from "../../utils/fileTypes";
 import { reorderVisibleNames } from "../../utils/fileOrder";
 import { remapMovedPath } from "../../utils/pathMove";
@@ -1372,7 +1375,14 @@ export const FileTree: Component<FileTreeProps> = (props) => {
                         fallback={
                             <FileItem
                                 entry={entry}
-                                onClick={() => props.onFileClick(entry.relative_path)}
+                                onClick={(event) => {
+                                    if (/\.url$/i.test(entry.name) && (event.ctrlKey || event.metaKey)) {
+                                        event.preventDefault();
+                                        void openInternetShortcutExternally(entry.relative_path);
+                                        return;
+                                    }
+                                    props.onFileClick(entry.relative_path);
+                                }}
                                 onContextMenu={(e) => showContextForFile(e, entry.relative_path, false)}
                                 isActive={props.activePath === entry.relative_path}
                                 depth={props.depth ?? 0}
@@ -1485,6 +1495,15 @@ const FolderItem: Component<{
                 }}
                 onClick={(event) => {
                     if ((event.target as HTMLElement).closest("[data-folder-toggle]")) return;
+                    const shortcutFiles = props.entry.children?.filter(
+                        (child) => !child.is_dir && /\.url$/i.test(child.name),
+                    ) ?? [];
+                    if ((event.ctrlKey || event.metaKey) && shortcutFiles.length === 1) {
+                        event.preventDefault();
+                        setFolderOpen(props.entry.relative_path, props.depth, true);
+                        void openInternetShortcutExternally(shortcutFiles[0].relative_path);
+                        return;
+                    }
                     const indexFile = props.entry.children?.find(
                         (child) => !child.is_dir && /^(index\.md|index\.html)$/i.test(child.name),
                     );
@@ -1492,9 +1511,6 @@ const FolderItem: Component<{
                         setFolderOpen(props.entry.relative_path, props.depth, true);
                         props.onFileClick(indexFile.relative_path);
                     } else {
-                        const shortcutFiles = props.entry.children?.filter(
-                            (child) => !child.is_dir && /\.url$/i.test(child.name),
-                        ) ?? [];
                         if (shortcutFiles.length === 1) {
                             setFolderOpen(props.entry.relative_path, props.depth, true);
                             props.onFileClick(shortcutFiles[0].relative_path);
@@ -1590,7 +1606,7 @@ const FolderItem: Component<{
 
 const FileItem: Component<{
     entry: VaultEntry;
-    onClick: () => void;
+    onClick: (event: MouseEvent) => void;
     onContextMenu: (e: MouseEvent) => void;
     isActive: boolean;
     depth: number;

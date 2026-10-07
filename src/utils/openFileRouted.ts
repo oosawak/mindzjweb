@@ -22,7 +22,7 @@ import { getFileHandler } from "./fileTypes";
  *   - Images (`.png`, `.jpg`, `.gif`, `.webp`, `.svg`, ...) → an
  *     in-app preview tab.
  *
- *   - PDFs → an in-app PDF viewer tab.
+ *   - PDFs and Internet Shortcut files → an in-app preview tab.
  *   - `.doc/.docx` → an in-app document placeholder tab so the file
  *     stays in the workspace rather than jumping out to another app.
  *
@@ -35,40 +35,10 @@ import { getFileHandler } from "./fileTypes";
  */
 export async function openFileRouted(relativePath: string): Promise<void> {
     if (/\.url$/i.test(relativePath)) {
-        // Windows Internet Shortcut files are small INI-like text files.
-        // Open a blank tab synchronously so browsers allow the later URL
-        // navigation after the shortcut content has been read.
-        const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-        const popup = !isTauri && typeof window !== "undefined"
-            ? window.open("about:blank", "_blank")
-            : null;
-        if (popup) popup.opener = null;
-
         try {
-            const shortcut = await invoke<{ content: string }>("read_file", { relativePath });
-            const content = shortcut.content.replace(/^\uFEFF/, "");
-            const match = content
-                .match(/^\s*URL\s*=\s*(.*?)\s*$/im);
-            const target = match?.[1] || content.split(/\r?\n/).map((line) => line.trim())
-                .find((line) => /^https?:\/\//i.test(line));
-            if (!target) throw new Error("The .url file does not contain a URL entry");
-
-            const url = new URL(target);
-            if (url.protocol !== "http:" && url.protocol !== "https:") {
-                throw new Error("Only HTTP and HTTPS links are allowed in .url files");
-            }
-
-            if (isTauri) {
-                const shell = await import("@tauri-apps/plugin-shell");
-                await shell.open(url.toString());
-            } else if (popup) {
-                popup.location.replace(url.toString());
-            } else {
-                console.warn("[openFileRouted] browser blocked the .url popup");
-            }
+            vaultStore.openPreviewFile(relativePath, "document");
         } catch (e) {
-            popup?.close();
-            console.error("[openFileRouted] failed to open Internet Shortcut:", e);
+            console.error("[openFileRouted] failed to preview Internet Shortcut:", e);
         }
         return;
     }
@@ -124,5 +94,44 @@ export async function openFileRouted(relativePath: string): Promise<void> {
             }
             return;
         }
+    }
+}
+
+export async function readInternetShortcutUrl(relativePath: string): Promise<string> {
+    const shortcut = await invoke<{ content: string }>("read_file", { relativePath });
+    const content = shortcut.content.replace(/^\uFEFF/, "");
+    const target = content.match(/^\s*URL\s*=\s*(.*?)\s*$/im)?.[1]
+        || content.split(/\r?\n/).map((line) => line.trim())
+            .find((line) => /^https?:\/\//i.test(line));
+    if (!target) throw new Error("The .url file does not contain a URL entry");
+
+    const url = new URL(target);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+        throw new Error("Only HTTP and HTTPS links are allowed in .url files");
+    }
+    return url.toString();
+}
+
+/** Open a .url target in the user's external browser. Call directly from a click. */
+export async function openInternetShortcutExternally(relativePath: string): Promise<void> {
+    const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+    const popup = !isTauri && typeof window !== "undefined"
+        ? window.open("about:blank", "_blank")
+        : null;
+    if (popup) popup.opener = null;
+
+    try {
+        const url = await readInternetShortcutUrl(relativePath);
+        if (isTauri) {
+            const shell = await import("@tauri-apps/plugin-shell");
+            await shell.open(url);
+        } else if (popup) {
+            popup.location.replace(url);
+        } else {
+            console.warn("[openFileRouted] browser blocked the .url popup");
+        }
+    } catch (error) {
+        popup?.close();
+        console.error("[openFileRouted] failed to open Internet Shortcut externally:", error);
     }
 }
