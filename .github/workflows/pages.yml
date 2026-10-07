@@ -30,6 +30,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Index published Vault files
+        run: npm run sync:pages-manifest
       - name: Build MindZJ browser demo
         run: npm run build:pages-demo
       - name: Assemble Pages site

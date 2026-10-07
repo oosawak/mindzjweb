@@ -141,22 +141,6 @@
       "title": "配達クエスト仕様：灯台への手紙"
     },
     {
-      "path": "Samples/Sample-ja/ゲーム制作/ARISA-Quest/仕様書/New note.md",
-      "title": "New note"
-    },
-    {
-      "path": "Samples/Sample-ja/ゲーム制作/REISRAND/３Dアセット制作チュートリアル.md",
-      "title": "３Dアセット制作チュートリアル"
-    },
-    {
-      "path": "Samples/Sample-ja/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.md",
-      "title": "REISRAND 開発参加ガイド"
-    },
-    {
-      "path": "Samples/Sample-ja/ゲーム制作/REISRAND/ゲームの概要.md",
-      "title": "ゲームの概要"
-    },
-    {
       "path": "Samples/Sample-ja/ソフトウェア開発/サービス概要.md",
       "title": "ソフトウェア開発：備品予約サービス"
     },
@@ -1016,16 +1000,6 @@
     "Samples/Sample-ja/ゲーム開発/プロジェクト概要.md",
     "Samples/Sample-ja/ゲーム開発/日報.md",
     "Samples/Sample-ja/ゲーム開発/配達クエスト仕様.md",
-    "Samples/Sample-ja/ゲーム制作/ARISA-Quest/リソース/３ｄ/Untitled.glb",
-    "Samples/Sample-ja/ゲーム制作/ARISA-Quest/リソース/音楽/曲 1.wav",
-    "Samples/Sample-ja/ゲーム制作/ARISA-Quest/リソース/画像/Image_1.jpg",
-    "Samples/Sample-ja/ゲーム制作/ARISA-Quest/仕様書/arisa-character-design.png",
-    "Samples/Sample-ja/ゲーム制作/ARISA-Quest/仕様書/New note.md",
-    "Samples/Sample-ja/ゲーム制作/REISRAND/３Dアセット制作チュートリアル.md",
-    "Samples/Sample-ja/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.md",
-    "Samples/Sample-ja/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.pdf",
-    "Samples/Sample-ja/ゲーム制作/REISRAND/ゲームの概要.md",
-    "Samples/Sample-ja/ゲーム制作/REISRAND/リソース/スクリーンショット/3Dソフト基本操作＆モデリング入門.png",
     "Samples/Sample-ja/ソフトウェア開発/サービス概要.md",
     "Samples/Sample-ja/ソフトウェア開発/障害課題メモ.md",
     "Samples/Sample-ja/ソフトウェア開発/予約API仕様.md",
