@@ -734,6 +734,20 @@ kbd{border:1px solid #3b4050;border-bottom-width:2px;background:#171a22;border-r
 
 <script>
 (() => {
+// The MindZJ HTML preview runs in a sandboxed iframe where browser storage
+// can be unavailable. Keep the demo usable with in-memory settings in that case.
+const storage = (() => {
+ try { return window.localStorage; }
+ catch {
+  const values = new Map();
+  return {
+   getItem: key => values.has(String(key)) ? values.get(String(key)) : null,
+   setItem: (key,value) => values.set(String(key),String(value)),
+   removeItem: key => values.delete(String(key)),
+   clear: () => values.clear(),
+  };
+ }
+})();
 // Harmonic API supplied for Theory Assist. No generator or audio dependencies.
 const ArcadiaTheory = (() => {
  'use strict';
@@ -2069,12 +2083,12 @@ function loadLegacySongPayload(payload){
 }
 function autoSave(){
  try{
-   localStorage.setItem(STORAGE_KEY,JSON.stringify(exportProjectPayload()));
+   storage.setItem(STORAGE_KEY,JSON.stringify(exportProjectPayload()));
  }catch{}
 }
 function loadAutoSavedProject(){
  try{
-   const raw=localStorage.getItem(STORAGE_KEY);
+   const raw=storage.getItem(STORAGE_KEY);
    if(!raw)return false;
    const data=JSON.parse(raw);
    if(data?.songs) loadProjectPayload(data);
@@ -3031,9 +3045,9 @@ const DEFAULT_INSTRUMENT_PRESETS={
 };
 function readInstrumentPresets(){
  try{
-  const saved=JSON.parse(localStorage.getItem(INSTRUMENT_PRESETS_KEY)||"{}");
+  const saved=JSON.parse(storage.getItem(INSTRUMENT_PRESETS_KEY)||"{}");
   const presets={...DEFAULT_INSTRUMENT_PRESETS,...saved};
-  if(Object.keys(saved).length!==Object.keys(presets).length)localStorage.setItem(INSTRUMENT_PRESETS_KEY,JSON.stringify(presets));
+  if(Object.keys(saved).length!==Object.keys(presets).length)storage.setItem(INSTRUMENT_PRESETS_KEY,JSON.stringify(presets));
   return presets;
  }catch{return {...DEFAULT_INSTRUMENT_PRESETS}}
 }
@@ -3045,13 +3059,13 @@ function renderInstrumentPresets(){
 function currentInstrumentSettings(){const t=state.tracks[state.selected],s=t.sound||SOUND_DEFAULTS[state.selected];return {...s,type:t.type,label:t.label}}
 function saveInstrumentPreset(){
  const name=$("#instrumentPresetName")?.value.trim();if(!name){toast("楽器名を入力してください");return}
- const presets=readInstrumentPresets();presets[name]=currentInstrumentSettings();localStorage.setItem(INSTRUMENT_PRESETS_KEY,JSON.stringify(presets));renderInstrumentPresets();$("#instrumentPresetSel").value=name;toast(`${name} を保存しました`);
+ const presets=readInstrumentPresets();presets[name]=currentInstrumentSettings();storage.setItem(INSTRUMENT_PRESETS_KEY,JSON.stringify(presets));renderInstrumentPresets();$("#instrumentPresetSel").value=name;toast(`${name} を保存しました`);
 }
 function loadInstrumentPreset(){
  const name=$("#instrumentPresetSel")?.value,preset=readInstrumentPresets()[name];if(!preset)return;state.tracks[state.selected].sound={...preset};if(preset.type)state.tracks[state.selected].type=preset.type;if(preset.label)state.tracks[state.selected].label=preset.label;render();autoSave();toast(`${name} を読み込みました`);
 }
 function deleteInstrumentPreset(){
- const sel=$("#instrumentPresetSel"),name=sel?.value;if(!name)return;const presets=readInstrumentPresets();delete presets[name];localStorage.setItem(INSTRUMENT_PRESETS_KEY,JSON.stringify(presets));renderInstrumentPresets();toast(`${name} を削除しました`);
+ const sel=$("#instrumentPresetSel"),name=sel?.value;if(!name)return;const presets=readInstrumentPresets();delete presets[name];storage.setItem(INSTRUMENT_PRESETS_KEY,JSON.stringify(presets));renderInstrumentPresets();toast(`${name} を削除しました`);
 }
 function previewInstrument(){
  const index=state.selected,track=state.tracks[index],wasMuted=track.mute,wasSolo=state.tracks.map(t=>t.solo);
@@ -3764,13 +3778,13 @@ if(!loadedAutoSave){
 installBuiltinSamples();
 function setupLanguageMode(){
  const select=$('#languageMode');if(!select)return;
- const mode=localStorage.getItem('arcadia.languageMode')||'us';
+ const mode=storage.getItem('arcadia.languageMode')||'us';
  const labels={us:{newBtn:'New',saveBtn:'Save',loadBtn:'Load',midiImportBtn:'MIDI Import',midiBtn:'MIDI Save',wavBtn:'WAVE Save',helpBtn:'Guide',quickGenerateBtn:'Generate',quickSaveBtn:'Save',quickModeHint:'Generate, play and save',currentQuick:'Current: QUICK MODE (Simple)',currentAdvanced:'Current: ADVANCED MODE (Detailed)',advancedSwitch:'Switch to ADVANCED MODE',quickSwitch:'Switch to QUICK MODE'},jp:{newBtn:'新規',saveBtn:'保存',loadBtn:'読込',midiImportBtn:'MIDI読込',midiBtn:'MIDI保存',wavBtn:'WAVE保存',helpBtn:'操作ガイド',quickGenerateBtn:'自動生成',quickSaveBtn:'保存',quickModeHint:'自動生成・再生・保存に絞った簡単モード',currentQuick:'現在：QUICK MODE（簡単操作）',currentAdvanced:'現在：ADVANCED MODE（詳細編集）',advancedSwitch:'ADVANCED MODEへ切り替え',quickSwitch:'QUICK MODEへ切り替え'}};
- const apply=lang=>{const l=labels[lang]||labels.us;select.value=lang;Object.entries(l).forEach(([id,text])=>{const el=$('#'+id);if(el)el.textContent=text;});const advanced=document.body?.classList.contains('advanced-mode');const label=$('#currentModeLabel'),toggle=$('#advancedModeBtn');if(label)label.textContent=advanced?l.currentAdvanced:l.currentQuick;if(toggle)toggle.textContent=advanced?l.quickSwitch:l.advancedSwitch;const hint=$('#quickModeHint');if(hint)hint.textContent=l.quickModeHint;localStorage.setItem('arcadia.languageMode',lang);};
+ const apply=lang=>{const l=labels[lang]||labels.us;select.value=lang;Object.entries(l).forEach(([id,text])=>{const el=$('#'+id);if(el)el.textContent=text;});const advanced=document.body?.classList.contains('advanced-mode');const label=$('#currentModeLabel'),toggle=$('#advancedModeBtn');if(label)label.textContent=advanced?l.currentAdvanced:l.currentQuick;if(toggle)toggle.textContent=advanced?l.quickSwitch:l.advancedSwitch;const hint=$('#quickModeHint');if(hint)hint.textContent=l.quickModeHint;storage.setItem('arcadia.languageMode',lang);};
  select.onchange=()=>apply(select.value);window.applyLanguageMode=apply;apply(mode);
 }
 function setupWorkspaceMode(){
- const root=document.body;if(!root)return; const savedMode=localStorage.getItem('arcadia.workspaceMode')||'quick', remember=localStorage.getItem('arcadia.advancedStartup')==='1';
+ const root=document.body;if(!root)return; const savedMode=storage.getItem('arcadia.workspaceMode')||'quick', remember=storage.getItem('arcadia.advancedStartup')==='1';
  const composerPanel=$('#composerPanel'),quickBar=$('#quickBar');if(composerPanel&&quickBar)composerPanel.insertBefore(quickBar,composerPanel.children[1]||null);
  const setMode=mode=>{
   const advanced=mode==='advanced';
@@ -3778,7 +3792,7 @@ function setupWorkspaceMode(){
   $('#currentModeLabel').textContent=advanced?'現在：ADVANCED MODE（詳細編集）':'現在：QUICK MODE（簡単操作）';
   $('#advancedModeBtn').textContent=advanced?'QUICK MODEへ切り替え':'ADVANCED MODEへ切り替え';
   $('#quickBar .quick-title').textContent=advanced?'ADVANCED MODE':'QUICK MODE';
-  localStorage.setItem('arcadia.workspaceMode',advanced?'advanced':'quick');
+  storage.setItem('arcadia.workspaceMode',advanced?'advanced':'quick');
  };
  const copyOptions=(from,to)=>{if(!from||!to)return;to.innerHTML=from.innerHTML;to.value=from.value;};
  copyOptions($('#genrePresetSel'),$('#quickGenre'));copyOptions($('#styleSel'),$('#quickStyle'));copyOptions($('#soundStyleSel'),$('#quickSoundStyle'));copyOptions($('#progressionSel'),$('#quickProgression'));copyOptions($('#generationMode'),$('#quickGenerationMode'));$('#quickSeed').value=$('#generationSeed')?.value||state?.generation?.seed||1;
@@ -3792,7 +3806,7 @@ function setupWorkspaceMode(){
  $('#quickPlayBtn').onclick=()=>{$('#playBtn')?.click();};
  $('#quickSaveBtn').onclick=()=>$('#saveBtn')?.click();
  $('#advancedModeBtn').onclick=()=>setMode(root.classList.contains('advanced-mode')?'quick':'advanced');
- $('#advancedStartup').checked=remember;$('#advancedStartup').onchange=()=>{localStorage.setItem('arcadia.advancedStartup',$('#advancedStartup').checked?'1':'0');if($('#advancedStartup').checked)setMode('advanced');};
+ $('#advancedStartup').checked=remember;$('#advancedStartup').onchange=()=>{storage.setItem('arcadia.advancedStartup',$('#advancedStartup').checked?'1':'0');if($('#advancedStartup').checked)setMode('advanced');};
  setMode(remember?'advanced':savedMode);
  if(!remember&&savedMode==='quick'&&state?.arrangementPreset!=='audition'&&typeof auditionArrangement==='function') auditionArrangement();
 }

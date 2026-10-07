@@ -3552,7 +3552,7 @@ const AboutPanel: Component = () => {
             copied into public/ at build-time so Vite can serve it.
             Rendered at a fixed 64×64 box per the design spec. */}
                 <img
-                    src="/mindzj-logo.png"
+                    src={`${import.meta.env.BASE_URL}mindzj-logo.png`}
                     alt="MindZJ logo"
                     width="64"
                     height="64"

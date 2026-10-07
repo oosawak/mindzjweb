@@ -420,7 +420,7 @@ export const WelcomeScreen: Component = () => {
         }}
       >
         <img
-          src="/mindzj-logo.png"
+          src={`${import.meta.env.BASE_URL}mindzj-logo.png`}
           alt={getBackendKind() === "web" ? "MindZJWeb logo" : "MindZJ logo"}
           width="64"
           height="64"
