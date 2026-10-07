@@ -92,7 +92,7 @@ export class PagesDemoBackend implements MindZjBackend {
     let result: unknown;
     switch (command) {
       case "list_web_vaults": {
-        const roots = [...new Set(all.files.map((path) => path.split("/")[0]))];
+        const roots = [...new Set(all.files.filter((path) => path !== "manifest.json").map((path) => path.split("/")[0]))];
         result = roots.map((name) => ({ name, path: `Vaults/${name}`, lastOpened: 0 })); break;
       }
       case "open_vault": {
