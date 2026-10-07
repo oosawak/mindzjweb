@@ -9,6 +9,10 @@
       "title": "b"
     },
     {
+      "path": "oosawak/New note.md",
+      "title": "New note"
+    },
+    {
       "path": "Samples/diary/2026/10/2026-10-01_minutes_ｘｘｘ_ｘｘｘ.md",
       "title": "ｘｘｘ"
     },
@@ -65,6 +69,22 @@
       "title": "配達クエスト仕様：灯台への手紙"
     },
     {
+      "path": "Samples/Sample/ゲーム制作/ARISA-Quest/仕様書/New note.md",
+      "title": "New note"
+    },
+    {
+      "path": "Samples/Sample/ゲーム制作/REISRAND/３Dアセット制作チュートリアル.md",
+      "title": "３Dアセット制作チュートリアル"
+    },
+    {
+      "path": "Samples/Sample/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.md",
+      "title": "REISRAND 開発参加ガイド"
+    },
+    {
+      "path": "Samples/Sample/ゲーム制作/REISRAND/ゲームの概要.md",
+      "title": "ゲームの概要"
+    },
+    {
       "path": "Samples/Sample/ソフトウェア開発/サービス概要.md",
       "title": "ソフトウェア開発：備品予約サービス"
     },
@@ -75,6 +95,14 @@
     {
       "path": "Samples/Sample/ソフトウェア開発/予約API仕様.md",
       "title": "予約 API 仕様（サンプル）"
+    },
+    {
+      "path": "Samples/Sample/ドキュメント/教科書/Unity入門.md",
+      "title": "Unity 超入門ガイド"
+    },
+    {
+      "path": "Samples/Sample/ドキュメント/教科書/UnrealEngine入門.md",
+      "title": "Unreal Engine 超入門ガイド"
     },
     {
       "path": "Samples/Sample/映像・デザイン制作/制作ブリーフ.md",
@@ -99,30 +127,6 @@
     {
       "path": "Samples/Sample/製造・建築/設計変更記録.md",
       "title": "設計変更記録"
-    },
-    {
-      "path": "Samples/ゲーム制作/ARISA-Quest/仕様書/New note.md",
-      "title": "New note"
-    },
-    {
-      "path": "Samples/ゲーム制作/REISRAND/３Dアセット制作チュートリアル.md",
-      "title": "３Dアセット制作チュートリアル"
-    },
-    {
-      "path": "Samples/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.md",
-      "title": "REISRAND 開発参加ガイド"
-    },
-    {
-      "path": "Samples/ゲーム制作/REISRAND/ゲームの概要.md",
-      "title": "ゲームの概要"
-    },
-    {
-      "path": "Samples/ドキュメント/教科書/Unity入門.md",
-      "title": "Unity 超入門ガイド"
-    },
-    {
-      "path": "Samples/ドキュメント/教科書/UnrealEngine入門.md",
-      "title": "Unreal Engine 超入門ガイド"
     },
     {
       "path": "test/diary/2026/10/2026-10-01_minutes_ｘｘｘ_ｘｘｘ.md",
@@ -187,15 +191,13 @@
     {
       "path": "test/ドキュメント/教科書/UnrealEngine入門.md",
       "title": "Unreal Engine 超入門ガイド"
-    },
-    {
-      "path": "大澤公志郎/New note.md",
-      "title": "New note"
     }
   ],
   "files": [
     "a/a.md",
     "a/b.md",
+    "manifest.json",
+    "oosawak/New note.md",
     "Samples/diary/2026/10/2026-10-01_minutes_ｘｘｘ_ｘｘｘ.md",
     "Samples/diary/2026/10/2026-10-01_minutes_適当なゲームの打ち合わせ_大澤公志郎.md",
     "Samples/diary/2026/10/2026-10-01_report_ｘｘｘゲームの作業_大澤公志郎.md",
@@ -210,31 +212,33 @@
     "Samples/Sample/ゲーム開発/プロジェクト概要.md",
     "Samples/Sample/ゲーム開発/日報.md",
     "Samples/Sample/ゲーム開発/配達クエスト仕様.md",
+    "Samples/Sample/ゲーム制作/ARISA-Quest/リソース/３ｄ/Untitled.glb",
+    "Samples/Sample/ゲーム制作/ARISA-Quest/リソース/音楽/曲 1.wav",
+    "Samples/Sample/ゲーム制作/ARISA-Quest/リソース/画像/Image_1.jpg",
+    "Samples/Sample/ゲーム制作/ARISA-Quest/仕様書/arisa-character-design.png",
+    "Samples/Sample/ゲーム制作/ARISA-Quest/仕様書/New note.md",
+    "Samples/Sample/ゲーム制作/REISRAND/３Dアセット制作チュートリアル.md",
+    "Samples/Sample/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.md",
+    "Samples/Sample/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.pdf",
+    "Samples/Sample/ゲーム制作/REISRAND/ゲームの概要.md",
+    "Samples/Sample/ゲーム制作/REISRAND/リソース/スクリーンショット/3Dソフト基本操作＆モデリング入門.png",
     "Samples/Sample/ソフトウェア開発/サービス概要.md",
     "Samples/Sample/ソフトウェア開発/障害課題メモ.md",
     "Samples/Sample/ソフトウェア開発/予約API仕様.md",
+    "Samples/Sample/ドキュメント/教科書/Blender_5.0_First_Steps.pdf",
+    "Samples/Sample/ドキュメント/教科書/Unity入門.md",
+    "Samples/Sample/ドキュメント/教科書/UnrealEngine入門.md",
+    "Samples/Sample/ドキュメント/教科書/ゲーム開発エディタとキャラ移動ガイド.png",
     "Samples/Sample/映像・デザイン制作/制作ブリーフ.md",
     "Samples/Sample/教育・研究/研究ノート.md",
     "Samples/Sample/教育・研究/授業計画.md",
     "Samples/Sample/業界別サンプル.md",
     "Samples/Sample/製造・建築/案件概要.md",
     "Samples/Sample/製造・建築/設計変更記録.md",
-    "Samples/ゲーム制作/ARISA-Quest/リソース/３ｄ/Untitled.glb",
-    "Samples/ゲーム制作/ARISA-Quest/リソース/音楽/曲 1.wav",
-    "Samples/ゲーム制作/ARISA-Quest/リソース/画像/Image_1.jpg",
-    "Samples/ゲーム制作/ARISA-Quest/仕様書/arisa-character-design.png",
-    "Samples/ゲーム制作/ARISA-Quest/仕様書/New note.md",
-    "Samples/ゲーム制作/REISRAND/３Dアセット制作チュートリアル.md",
-    "Samples/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.md",
-    "Samples/ゲーム制作/REISRAND/REISRAND_開発参加ガイド.pdf",
-    "Samples/ゲーム制作/REISRAND/ゲームの概要.md",
-    "Samples/ゲーム制作/REISRAND/リソース/スクリーンショット/3Dソフト基本操作＆モデリング入門.png",
-    "Samples/ゲーム制作/Webゲーム/donkey_kong_arcade.html",
-    "Samples/ゲーム制作/大切な貴方へ花束を/「大切な貴方へ花束を」ルールブック.pdf",
-    "Samples/ドキュメント/教科書/Blender_5.0_First_Steps.pdf",
-    "Samples/ドキュメント/教科書/Unity入門.md",
-    "Samples/ドキュメント/教科書/UnrealEngine入門.md",
-    "Samples/ドキュメント/教科書/ゲーム開発エディタとキャラ移動ガイド.png",
+    "Samples/Web Game・Application/ArcadiaMusicForge/assets/arcadia-app-icon.png",
+    "Samples/Web Game・Application/ArcadiaMusicForge/assets/arcadia-title-banner.png",
+    "Samples/Web Game・Application/ArcadiaMusicForge/index.html",
+    "Samples/Web Game・Application/donkey_kong_arcade.html",
     "test/diary/2026/10/2026-10-01_minutes_ｘｘｘ_ｘｘｘ.md",
     "test/diary/2026/10/2026-10-01_minutes_適当なゲームの打ち合わせ_大澤公志郎.md",
     "test/diary/2026/10/2026-10-01_report_ｘｘｘゲームの作業_大澤公志郎.md",
@@ -260,7 +264,6 @@
     "test/ドキュメント/教科書/Blender_5.0_First_Steps.pdf",
     "test/ドキュメント/教科書/Unity入門.md",
     "test/ドキュメント/教科書/UnrealEngine入門.md",
-    "test/ドキュメント/教科書/ゲーム開発エディタとキャラ移動ガイド.png",
-    "大澤公志郎/New note.md"
+    "test/ドキュメント/教科書/ゲーム開発エディタとキャラ移動ガイド.png"
   ]
 }
