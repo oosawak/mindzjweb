@@ -20,4 +20,4 @@ Wählen Sie links eine Notiz zum Lesen aus. Wählen Sie Bearbeiten, nehmen Sie �
 
 ## Beispiele nach Branche
 
-Im [Sample-Ordner](Sample/業界別サンプル.md) finden Sie fiktive Notizen aus Spieleentwicklung, Software, Film und Design, Bildung und Forschung sowie Fertigung und Bauwesen.
+Im [Sample-Ordner](Sample-ja/業界別サンプル.md) finden Sie fiktive Notizen aus Spieleentwicklung, Software, Film und Design, Bildung und Forschung sowie Fertigung und Bauwesen.

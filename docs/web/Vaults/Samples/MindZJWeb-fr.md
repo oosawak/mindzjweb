@@ -20,4 +20,4 @@ Sélectionnez une note dans la barre latérale pour la lire. Choisissez Modifier
 
 ## Exemples par secteur
 
-Consultez le [dossier Sample](Sample/業界別サンプル.md) pour découvrir des notes fictives dans les domaines du jeu vidéo, du logiciel, de la vidéo et du design, de l’éducation et de la recherche, ainsi que de la fabrication et de la construction.
+Consultez le [dossier Sample](Sample-ja/業界別サンプル.md) pour découvrir des notes fictives dans les domaines du jeu vidéo, du logiciel, de la vidéo et du design, de l’éducation et de la recherche, ainsi que de la fabrication et de la construction.

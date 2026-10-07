@@ -102,8 +102,9 @@ type PaneSlot = "primary" | "secondary";
 type EmbeddedEditorSession = {
     url: string;
     fileName: string;
-    editor: "PhotoCraft" | "MindZJ PDF";
+    editor: "PhotoCraft" | "MindZJ PDF" | "FilmCraft";
     close: () => void;
+    connect?: (frame: HTMLIFrameElement) => void;
 };
 type AiPanelModelOption = {
     value: string;
@@ -1498,11 +1499,19 @@ const App: Component = () => {
             embeddedEditorSession()?.close();
             setEmbeddedEditorSession(session);
         };
+        const handleOpenFilmCraft = (event: Event) => {
+            const session = (event as CustomEvent<EmbeddedEditorSession>).detail;
+            if (!session?.url) return;
+            embeddedEditorSession()?.close();
+            setEmbeddedEditorSession(session);
+        };
         window.addEventListener("mindzj:open-photocraft", handleOpenPhotoCraft);
         window.addEventListener("mindzj:open-printcraft", handleOpenPrintCraft);
+        window.addEventListener("mindzj:open-filmcraft", handleOpenFilmCraft);
         onCleanup(() => {
             window.removeEventListener("mindzj:open-photocraft", handleOpenPhotoCraft);
             window.removeEventListener("mindzj:open-printcraft", handleOpenPrintCraft);
+            window.removeEventListener("mindzj:open-filmcraft", handleOpenFilmCraft);
             embeddedEditorSession()?.close();
         });
         document.body.style.removeProperty("zoom");
@@ -4601,6 +4610,7 @@ const App: Component = () => {
                                         src={embeddedEditorSession()!.url}
                                         title={`${embeddedEditorSession()!.editor} — ${embeddedEditorSession()!.fileName}`}
                                         allow="clipboard-read; clipboard-write"
+                                        onLoad={(event) => embeddedEditorSession()?.connect?.(event.currentTarget)}
                                         style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
                                     />
                                 </div>

@@ -20,4 +20,4 @@ Selecciona una nota en la lista de la izquierda para leerla. Elige Editar para c
 
 ## Ejemplos por sector
 
-Consulta la [carpeta Sample](Sample/業界別サンプル.md) para ver notas ficticias de desarrollo de videojuegos, software, producción audiovisual y diseño, educación e investigación, y fabricación y construcción.
+Consulta la [carpeta Sample](Sample-ja/業界別サンプル.md) para ver notas ficticias de desarrollo de videojuegos, software, producción audiovisual y diseño, educación e investigación, y fabricación y construcción.
