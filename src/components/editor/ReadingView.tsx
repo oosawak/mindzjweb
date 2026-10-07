@@ -38,7 +38,11 @@ import {
     setFindQuery,
 } from "../../stores/findState";
 import katex from "katex";
-import { resolveImageAssetUrl, toVaultAssetUrl } from "../../utils/vaultPaths";
+import {
+    resolveImageAssetUrl,
+    resolveNoteRelativePath,
+    toVaultAssetUrl,
+} from "../../utils/vaultPaths";
 import { navigateWikiTarget } from "../../utils/wikiNavigation";
 import { requestViewModeChange } from "../../utils/editMode";
 import { showImageContextMenu } from "./extensions/livePreview";
@@ -1724,19 +1728,75 @@ export const ReadingView: Component<ReadingViewProps> = (props) => {
                 .querySelectorAll<HTMLAnchorElement>("a.mz-rv-link")
                 .forEach((el) => {
                     const href = el.getAttribute("href") ?? "";
-                    if (!/^https?:\/\//i.test(href)) return;
+                    if (/^https?:\/\//i.test(href)) {
+                        // Browser builds already render external links with
+                        // target="_blank". Keep the browser's native new-tab
+                        // behavior there; only Tauri needs its shell plugin.
+                        if (!("__TAURI_INTERNALS__" in window)) return;
+                        el.addEventListener("click", async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            try {
+                                const shell =
+                                    await import("@tauri-apps/plugin-shell");
+                                await shell.open(href);
+                            } catch (err) {
+                                console.warn(
+                                    "[reading] failed to open external URL:",
+                                    err,
+                                );
+                            }
+                        });
+                        return;
+                    }
+
+                    const scheme = href.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase();
+                    if (scheme) {
+                        if (scheme === "mailto" || scheme === "tel") return;
+                        el.addEventListener("click", (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        });
+                        return;
+                    }
+
+                    // Open Vault-relative Markdown links through MindZJ's
+                    // file router instead of letting the browser navigate to
+                    // a URL that does not represent a Vault file. This also
+                    // routes HTML resources to their in-app page preview.
                     el.addEventListener("click", async (e) => {
+                        if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
                         e.preventDefault();
                         e.stopPropagation();
+                        const hashIndex = href.indexOf("#");
+                        const rawPath = (hashIndex >= 0
+                            ? href.slice(0, hashIndex)
+                            : href).split("?")[0];
+                        const rawAnchor = hashIndex >= 0
+                            ? href.slice(hashIndex + 1).split("?")[0]
+                            : "";
+                        let decodedPath = rawPath;
+                        let decodedAnchor = rawAnchor;
                         try {
-                            const shell =
-                                await import("@tauri-apps/plugin-shell");
-                            await shell.open(href);
+                            decodedPath = decodeURIComponent(rawPath);
+                            decodedAnchor = decodeURIComponent(rawAnchor);
+                        } catch {
+                            // Keep the literal link when it contains an
+                            // invalid percent escape.
+                        }
+                        const target = decodedPath
+                            ? resolveNoteRelativePath(decodedPath, activeFile.path)
+                            : activeFile.path;
+                        const targetWithAnchor = decodedAnchor
+                            ? `${target}#${decodedAnchor}`
+                            : target;
+                        try {
+                            activatePane();
+                            await navigateWikiTarget(targetWithAnchor, {
+                                viewMode: "reading",
+                            });
                         } catch (err) {
-                            console.warn(
-                                "[reading] failed to open external URL:",
-                                err,
-                            );
+                            console.warn("[reading] failed to open Markdown link:", err);
                         }
                     });
                 });
