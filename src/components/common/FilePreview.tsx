@@ -305,7 +305,7 @@ export const FilePreview: Component<{
                                     <iframe
                                         src={url()}
                                         title={fileName()}
-                                        sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+                                        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-pointer-lock"
                                         referrerPolicy="no-referrer"
                                         style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
                                     />
