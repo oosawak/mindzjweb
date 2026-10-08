@@ -8,6 +8,8 @@ import {
     onMount,
     onCleanup,
 } from "solid-js";
+import * as Y from "yjs";
+import { yCollab, ySyncAnnotation, ySyncFacet } from "y-codemirror.next";
 import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
 import {
     EditorView,
@@ -76,6 +78,7 @@ import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { invoke } from "../../backend";
 import { vaultStore } from "../../stores/vault";
 import { editorStore, type ViewMode } from "../../stores/editor";
+import { collaborationStore } from "../../stores/collaboration";
 import { settingsStore } from "../../stores/settings";
 import { ContextMenu, type MenuItem } from "../common/ContextMenu";
 import {
@@ -115,6 +118,7 @@ import {
 import { t } from "../../i18n";
 import { requestViewModeChange } from "../../utils/editMode";
 import { normalizePastedOrderedLists } from "../../utils/pasteMarkdown";
+import { isCollaborativeWebNote } from "../../utils/collaboration";
 
 interface EditorProps {
     file?: ReturnType<typeof vaultStore.activeFile>;
@@ -398,6 +402,23 @@ export const Editor: Component<EditorProps> = (props) => {
     let currentFilePath: string | null = null;
     let currentViewMode: ViewMode | null = null;
     let isProgrammaticUpdate = false;
+    const collabCompartment = new Compartment();
+    const collabReadOnlyCompartment = new Compartment();
+    type CollabSession = {
+        path: string;
+        doc: Y.Doc;
+        text: Y.Text;
+        socket: WebSocket | null;
+        ready: boolean;
+        stopped: boolean;
+        reconnectAttempts: number;
+        remoteOrigin: symbol;
+        pendingUpdates: number;
+        pendingLocalUpdates: Uint8Array[];
+        inputResetTimer?: number;
+        reconnectTimer?: number;
+    };
+    let collabSession: CollabSession | null = null;
     // Guard that prevents our CM6 updateListener from echoing the
     // same SearchQuery effect back into the shared-state signals we
     // *just* dispatched. Without it, open-panel + setSearchQuery
@@ -941,6 +962,7 @@ export const Editor: Component<EditorProps> = (props) => {
             // `setActiveFile` with identical content) are no-ops.
             if (
                 editorView &&
+                !isCollaborativeWebNote(activeFile.path) &&
                 activeFile.content !== editorView.state.doc.toString()
             ) {
                 const beforeContent = editorView.state.doc.toString();
@@ -1022,6 +1044,7 @@ export const Editor: Component<EditorProps> = (props) => {
             "mindzj:remember-active-viewport",
             handleRememberViewport,
         );
+        stopCollaboration();
         rememberEditorViewport();
     });
 
@@ -1154,8 +1177,222 @@ export const Editor: Component<EditorProps> = (props) => {
         ),
     );
 
+    function stopCollaboration(path?: string) {
+        const session = collabSession;
+        if (!session || (path && session.path !== path)) return;
+        collabSession = null;
+        try {
+            session.stopped = true;
+            if (session.reconnectTimer !== undefined) window.clearTimeout(session.reconnectTimer);
+            session.socket?.close(1000, "left note editor");
+        } catch {
+            // The socket may already be closed.
+        }
+        if (session.inputResetTimer !== undefined) window.clearTimeout(session.inputResetTimer);
+        session.doc.destroy();
+        collaborationStore.update(session.path, {
+            connection: "disconnected",
+            participants: 0,
+            input: "idle",
+            save: session.pendingUpdates > 0 ? "error" : "idle",
+        });
+    }
+
+    function startCollaboration(path: string) {
+        if (collabSession?.path === path) return;
+        stopCollaboration();
+        const doc = new Y.Doc();
+        const text = doc.getText("markdown");
+        const remoteOrigin = Symbol(`remote:${path}`);
+        const session: CollabSession = {
+            path,
+            doc,
+            text,
+            socket: null,
+            ready: false,
+            stopped: false,
+            reconnectAttempts: 0,
+            remoteOrigin,
+            pendingUpdates: 0,
+            pendingLocalUpdates: [],
+        };
+        collabSession = session;
+        collaborationStore.update(path, {
+            connection: "connecting",
+            participants: 0,
+            input: "idle",
+            save: "pending",
+        });
+
+        doc.on("update", (update: Uint8Array, origin: unknown) => {
+            vaultStore.updateOpenFileContent(path, text.toString());
+            if (origin === remoteOrigin || session.socket?.readyState !== WebSocket.OPEN) return;
+            const frame = new Uint8Array(update.length + 1);
+            frame[0] = 1;
+            frame.set(update, 1);
+            session.pendingUpdates += 1;
+            session.pendingLocalUpdates.push(update.slice());
+            collaborationStore.update(path, { input: "editing", save: "pending" });
+            if (session.inputResetTimer !== undefined) window.clearTimeout(session.inputResetTimer);
+            session.inputResetTimer = window.setTimeout(() => {
+                if (collabSession === session && session.pendingUpdates === 0) {
+                    collaborationStore.update(path, { input: "idle" });
+                }
+                session.inputResetTimer = undefined;
+            }, 800);
+            session.socket.send(frame);
+        });
+
+        connectCollaborationSocket(session);
+    }
+
+    function connectCollaborationSocket(session: CollabSession) {
+        if (session.stopped) return;
+        const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const encodedPath = session.path.split("/").map(encodeURIComponent).join("/");
+        const socket = new WebSocket(`${scheme}//${window.location.host}/api/collab/${encodedPath}`);
+        socket.binaryType = "arraybuffer";
+        session.socket = socket;
+
+        socket.addEventListener("open", () => {
+            if (collabSession === session && !session.stopped) {
+                session.reconnectAttempts = 0;
+                collaborationStore.update(session.path, { connection: "connected" });
+            }
+        });
+        socket.addEventListener("message", (event) => {
+            if (collabSession !== session || session.socket !== socket || !(event.data instanceof ArrayBuffer)) return;
+            const frame = new Uint8Array(event.data);
+            const kind = frame[0];
+            if (kind === 2 && frame.length >= 5) {
+                const participants = new DataView(frame.buffer, frame.byteOffset, frame.byteLength).getUint32(1, false);
+                collaborationStore.update(session.path, { participants });
+                return;
+            }
+            if (kind === 3) {
+                session.pendingUpdates = 0;
+                collaborationStore.update(session.path, {
+                    input: "editing",
+                    save: "saved",
+                });
+                if (session.inputResetTimer !== undefined) window.clearTimeout(session.inputResetTimer);
+                session.inputResetTimer = window.setTimeout(() => {
+                    if (collabSession === session && session.pendingUpdates === 0) {
+                        collaborationStore.update(session.path, { input: "idle" });
+                    }
+                    session.inputResetTimer = undefined;
+                }, 800);
+                return;
+            }
+            if (kind === 4) {
+                collaborationStore.update(session.path, { save: "error" });
+                if (editorView && currentFilePath === session.path) {
+                    editorView.dispatch({ effects: collabReadOnlyCompartment.reconfigure(EditorState.readOnly.of(true)) });
+                }
+                return;
+            }
+            if (kind !== 0 && kind !== 1) return;
+
+            try {
+                Y.applyUpdate(session.doc, frame.subarray(1), session.remoteOrigin);
+            } catch (error) {
+                console.error("Invalid collaborative update:", error);
+                collaborationStore.update(session.path, { connection: "error" });
+                return;
+            }
+
+            if (kind === 0) {
+                const isReconnect = session.ready;
+                session.ready = true;
+                if (editorView && currentFilePath === session.path && getActiveViewMode() !== "reading") {
+                    if (!isReconnect) {
+                        editorView.dispatch({
+                            effects: [
+                                collabCompartment.reconfigure(yCollab(session.text, null, { undoManager: false })),
+                                collabReadOnlyCompartment.reconfigure(EditorState.readOnly.of(false)),
+                            ],
+                        });
+                        const yConfig = editorView.state.facet(ySyncFacet);
+                        const serverContent = session.text.toString();
+                        if (editorView.state.doc.toString() !== serverContent) {
+                            isProgrammaticUpdate = true;
+                            try {
+                                editorView.dispatch({
+                                    changes: {
+                                        from: 0,
+                                        to: editorView.state.doc.length,
+                                        insert: serverContent,
+                                    },
+                                    annotations: ySyncAnnotation.of(yConfig),
+                                });
+                            } finally {
+                                isProgrammaticUpdate = false;
+                            }
+                        }
+                        editorStore.updateStats(serverContent);
+                    } else {
+                        // Merge the server snapshot into the still-live local Y.Doc,
+                        // then send the merged state so edits survive server restarts.
+                        const update = Y.encodeStateAsUpdate(session.doc);
+                        if (socket.readyState === WebSocket.OPEN) {
+                            const frame = new Uint8Array(update.length + 1);
+                            frame[0] = 1;
+                            frame.set(update, 1);
+                            session.pendingUpdates += 1;
+                            session.pendingLocalUpdates.push(update.slice());
+                            socket.send(frame);
+                            collaborationStore.update(session.path, { save: "pending" });
+                        }
+                        editorView.dispatch({ effects: collabReadOnlyCompartment.reconfigure(EditorState.readOnly.of(false)) });
+                    }
+                }
+                collaborationStore.update(session.path, { connection: "connected", save: isReconnect ? "pending" : "saved" });
+            } else if (kind === 1) {
+                const update = frame.subarray(1);
+                const ownIndex = session.pendingLocalUpdates.findIndex((pending) =>
+                    pending.length === update.length && pending.every((byte, index) => byte === update[index]),
+                );
+                if (ownIndex >= 0) {
+                    session.pendingLocalUpdates.splice(ownIndex, 1);
+                } else if (session.pendingUpdates === 0) {
+                    collaborationStore.update(session.path, { input: "updated", save: "saved" });
+                    if (session.inputResetTimer !== undefined) window.clearTimeout(session.inputResetTimer);
+                    window.setTimeout(() => {
+                        if (collabSession === session) collaborationStore.update(session.path, { input: "idle" });
+                    }, 1400);
+                }
+            }
+        });
+        socket.addEventListener("error", () => {
+            if (collabSession !== session) return;
+            collaborationStore.update(session.path, { connection: "error", save: "error" });
+            if (editorView && currentFilePath === session.path) {
+                editorView.dispatch({ effects: collabReadOnlyCompartment.reconfigure(EditorState.readOnly.of(true)) });
+            }
+        });
+        socket.addEventListener("close", () => {
+            if (collabSession !== session || session.socket !== socket || session.stopped) return;
+            session.socket = null;
+            collaborationStore.update(session.path, {
+                connection: "disconnected",
+                participants: 0,
+                input: "idle",
+                save: session.pendingUpdates > 0 ? "pending" : "idle",
+            });
+            if (editorView && currentFilePath === session.path && getActiveViewMode() !== "reading") {
+                editorView.dispatch({ effects: collabReadOnlyCompartment.reconfigure(EditorState.readOnly.of(true)) });
+            }
+            const delay = Math.min(1000 * 2 ** session.reconnectAttempts, 10000);
+            session.reconnectAttempts += 1;
+            session.reconnectTimer = window.setTimeout(() => connectCollaborationSocket(session), delay);
+        });
+    }
+
     function createEditorView(content: string) {
         if (!containerRef) return;
+        const path = currentFilePath;
+        const collaborative = isCollaborativeWebNote(path) && getActiveViewMode() !== "reading";
+        if (collabSession && (collabSession.path !== path || !collaborative)) stopCollaboration();
         closeContextMenu();
         setEditorSurfaceVisibility(false);
 
@@ -1303,8 +1540,16 @@ export const Editor: Component<EditorProps> = (props) => {
                 ? livePreviewExtension(vaultRoot, currentFilePath ?? "")
                 : []),
 
-            // Reading mode: make editor non-editable
-            ...(isReading ? [EditorState.readOnly.of(true)] : []),
+            collabCompartment.of(
+                collabSession?.path === path && collabSession.ready
+                    ? yCollab(collabSession.text, null, { undoManager: false })
+                    : [],
+            ),
+            collabReadOnlyCompartment.of(
+                EditorState.readOnly.of(
+                    isReading || (collaborative && !(collabSession?.path === path && collabSession.ready)),
+                ),
+            ),
 
             // Plugin-registered CM6 extensions (via registerEditorExtension)
             ...((window as any).__mindzj_plugin_cm_extensions ?? []),
@@ -1453,7 +1698,7 @@ export const Editor: Component<EditorProps> = (props) => {
             EditorView.updateListener.of((update) => {
                 if (update.docChanged && !isProgrammaticUpdate) {
                     const content = update.state.doc.toString();
-                    if (currentFilePath) {
+                    if (currentFilePath && !isCollaborativeWebNote(currentFilePath)) {
                         editorStore.scheduleAutoSave(currentFilePath, content);
                     }
                     if (isPaneActive()) {
@@ -1838,6 +2083,14 @@ export const Editor: Component<EditorProps> = (props) => {
         }
 
         editorView = new EditorView({ state, parent: containerRef });
+        if (collaborative && path && !collabSession) {
+            try {
+                startCollaboration(path);
+            } catch (error) {
+                console.error("Could not start collaborative editing:", error);
+                collaborationStore.update(path, { connection: "error", save: "error" });
+            }
+        }
         if (pendingExternalEdits.length > 0) {
             isProgrammaticUpdate = true;
             try {

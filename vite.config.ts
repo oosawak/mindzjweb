@@ -66,10 +66,7 @@ export default defineConfig(async () => ({
     minify: isTauriBuild ? false : "esbuild",
     rollupOptions: isPagesDemo
       ? undefined
-      : { input: {
-          main: resolve(process.cwd(), "index.html"),
-          collabPrototype: resolve(process.cwd(), "collab-prototype.html"),
-        } },
+      : { input: { main: resolve(process.cwd(), "index.html") } },
   },
 
   resolve: {

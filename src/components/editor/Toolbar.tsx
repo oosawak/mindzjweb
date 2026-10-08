@@ -20,6 +20,8 @@ import { openImageInPhotoCraft } from "../../utils/photoCraft";
 import { openPdfInPrintCraft } from "../../utils/printCraft";
 import { openVideoInFilmCraft } from "../../utils/filmCraft";
 import { openAudioInAudioMass } from "../../utils/audioMass";
+import { collaborationStore } from "../../stores/collaboration";
+import { isCollaborativeWebNote } from "../../utils/collaboration";
 
 interface ToolbarButton {
   command: string;
@@ -158,6 +160,20 @@ export const Toolbar: Component = () => {
     ? "reading"
     : editorStore.getViewModeForFile(vaultStore.activeFile()?.path ?? null);
   const activePath = () => vaultStore.activeFile()?.path ?? null;
+  const isCollaborationActive = () =>
+    isCollaborativeWebNote(activePath()) && currentViewMode() !== "reading";
+  const collaborationLabel = () => {
+    const path = activePath();
+    if (!path) return "";
+    const state = collaborationStore.status(path);
+    if (state.connection === "connecting") return t("collab.connecting");
+    if (state.connection === "error") return t("collab.error");
+    if (state.connection === "disconnected") return t("collab.disconnected");
+    if (state.input === "editing") return `${t("collab.input")} · ${t("collab.connectedCount", { count: state.participants })}`;
+    if (state.input === "updated") return `${t("collab.received")} · ${t("collab.connectedCount", { count: state.participants })}`;
+    if (state.save === "pending") return `${t("collab.saving")} · ${t("collab.connectedCount", { count: state.participants })}`;
+    return `${t("collab.saved")} · ${t("collab.connectedCount", { count: state.participants })}`;
+  };
   const modeButtons = createMemo(() => isAudioFile()
     ? [
         { mode: "reading" as const, label: t("context.readingView") },
@@ -416,7 +432,7 @@ export const Toolbar: Component = () => {
           </button>
         </Show>
 
-        <Show when={!isImageFile() && !isAudioFile() && activePath() && currentViewMode() !== "reading"}>
+        <Show when={!isCollaborationActive() && !isImageFile() && !isAudioFile() && activePath() && currentViewMode() !== "reading"}>
           <button
             onClick={saveCurrent}
             title={t("common.save")}
@@ -439,6 +455,22 @@ export const Toolbar: Component = () => {
               {t("common.save")}
             </span>
           </button>
+        </Show>
+        <Show when={isCollaborationActive()}>
+          <span
+            role="status"
+            title={collaborationLabel()}
+            style={{
+              padding: "4px 8px",
+              border: "1px solid var(--mz-border)",
+              "border-radius": "var(--mz-radius-md)",
+              color: collaborationStore.status(activePath() ?? "").connection === "error"
+                ? "var(--mz-danger, #ef6b73)"
+                : "var(--mz-text-secondary)",
+              "font-size": "var(--mz-font-size-xs)",
+              "white-space": "nowrap",
+            }}
+          >{collaborationLabel()}</span>
         </Show>
         <For each={modeButtons()}>{({ mode, label }) => {
           const selected = () => mode === "photocraft-license"

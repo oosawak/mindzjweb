@@ -8,6 +8,7 @@ import {
   collectReferencedAnchors,
   updateBacklinksOnHeadingRename,
 } from "../utils/linkUpdater";
+import { isCollaborativeWebNote } from "../utils/collaboration";
 
 export type ViewMode = "source" | "live-preview" | "reading";
 type EditableViewMode = Exclude<ViewMode, "reading">;
@@ -367,6 +368,12 @@ function createEditorStore() {
     content: string,
     options?: { suppressSavedEvent?: boolean },
   ) {
+    // Collaborative Markdown is persisted by the collaboration WebSocket.
+    // Sending it through the regular file-save API is rejected by the server
+    // while the collaborative room is active, so Ctrl+S and tab-close saves
+    // intentionally defer to the collaboration auto-save path.
+    if (isCollaborativeWebNote(relativePath)) return;
+
     const existing = saveTimers.get(relativePath);
     if (existing) {
       clearTimeout(existing);

@@ -34,8 +34,9 @@ struct CollabRoom {
     doc: Doc,
     updates: broadcast::Sender<Vec<u8>>,
     clients: std::sync::atomic::AtomicUsize,
+    revision: std::sync::atomic::AtomicU64,
     state_path: PathBuf,
-    save_lock: tokio::sync::Mutex<()>,
+    persist_lock: tokio::sync::Mutex<()>,
 }
 
 struct EditLease {
@@ -195,6 +196,50 @@ fn atomic_write(path: &std::path::Path, bytes: &[u8]) -> Result<(), ApiError> {
     })
 }
 
+fn schedule_collab_flush(
+    room: Arc<CollabRoom>,
+    ctx: Arc<mindzj_lib::kernel::VaultContext>,
+    relative_path: String,
+    revision: u64,
+) {
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(350)).await;
+        if room.revision.load(std::sync::atomic::Ordering::Acquire) != revision { return; }
+        eprintln!("[collab] flushing revision {revision} for {relative_path}");
+        let _persist_guard = room.persist_lock.lock().await;
+        let (content, snapshot) = {
+            if room.revision.load(std::sync::atomic::Ordering::Acquire) != revision { return; }
+            eprintln!("[collab] capturing Yrs state for {relative_path}");
+            let text = room.doc.get_or_insert_text("markdown");
+            eprintln!("[collab] acquiring Yrs read transaction for {relative_path}");
+            let txn = room.doc.transact();
+            eprintln!("[collab] reading Yrs text for {relative_path}");
+            let content = text.get_string(&txn);
+            eprintln!("[collab] encoding Yrs snapshot for {relative_path}");
+            let snapshot = txn.encode_state_as_update_v1(&StateVector::default());
+            drop(txn);
+            eprintln!("[collab] captured Yrs state for {relative_path}");
+            (content, snapshot)
+        };
+        eprintln!("[collab] captured revision {revision} for {relative_path}");
+        if atomic_write(&room.state_path, &snapshot).is_err() {
+            eprintln!("[collab] snapshot write failed for {relative_path}");
+            let _ = room.updates.send(vec![4]);
+            return;
+        }
+        eprintln!("[collab] snapshot persisted for {relative_path}");
+        if ctx.vault.write_file(&relative_path, &content).is_ok() {
+            eprintln!("[collab] markdown persisted for {relative_path}");
+            ctx.on_file_changed(&relative_path, &content);
+            if room.revision.load(std::sync::atomic::Ordering::Acquire) == revision {
+                let _ = room.updates.send(vec![3]);
+            }
+        } else {
+            let _ = room.updates.send(vec![4]);
+        }
+    });
+}
+
 fn get_or_create_collab_room(
     state: &ServerState,
     relative_path: &str,
@@ -248,8 +293,9 @@ fn get_or_create_collab_room(
         doc,
         updates,
         clients: std::sync::atomic::AtomicUsize::new(1),
+        revision: std::sync::atomic::AtomicU64::new(0),
         state_path,
-        save_lock: tokio::sync::Mutex::new(()),
+        persist_lock: tokio::sync::Mutex::new(()),
     });
     rooms.insert(key.clone(), room.clone());
     state.active_collab_paths.lock().map_err(|_| ApiError::bad_request("Collaboration state unavailable"))?.insert(key.clone());
@@ -262,7 +308,9 @@ async fn collab_socket(
     Path(relative_path): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
     let relative_path = relative_path.replace('\\', "/");
+    eprintln!("[collab] opening room for {relative_path}");
     let (key, room, ctx) = get_or_create_collab_room(&state, &relative_path)?;
+    eprintln!("[collab] room ready for {relative_path}");
     Ok(ws.on_upgrade(move |socket| handle_collab_socket(socket, state, key, relative_path, room, ctx)))
 }
 
@@ -273,6 +321,11 @@ fn remove_collab_client(state: &ServerState, key: &str, room: &Arc<CollabRoom>) 
             rooms.remove(key);
             if let Ok(mut active) = state.active_collab_paths.lock() { active.remove(key); }
             let _ = std::fs::remove_file(&room.state_path);
+        } else if previous > 1 {
+            let mut presence = Vec::with_capacity(5);
+            presence.push(2);
+            presence.extend_from_slice(&((previous - 1) as u32).to_be_bytes());
+            let _ = room.updates.send(presence);
         }
     }
 }
@@ -285,6 +338,7 @@ async fn handle_collab_socket(
     room: Arc<CollabRoom>,
     ctx: Arc<mindzj_lib::kernel::VaultContext>,
 ) {
+    eprintln!("[collab] websocket upgraded for {relative_path}");
     let mut receiver = room.updates.subscribe();
     let snapshot = room.doc.transact().encode_state_as_update_v1(&StateVector::default());
     let mut initial = Vec::with_capacity(snapshot.len() + 1);
@@ -295,30 +349,65 @@ async fn handle_collab_socket(
         remove_collab_client(&state, &key, &room);
         return;
     }
+    eprintln!("[collab] initial snapshot sent for {relative_path}");
+    let mut presence = Vec::with_capacity(5);
+    presence.push(2);
+    presence.extend_from_slice(&(room.clients.load(std::sync::atomic::Ordering::Acquire) as u32).to_be_bytes());
+    if sender.send(Message::Binary(presence.into())).await.is_err() {
+        remove_collab_client(&state, &key, &room);
+        return;
+    }
+    let _ = room.updates.send({
+        let mut presence = Vec::with_capacity(5);
+        presence.push(2);
+        presence.extend_from_slice(&(room.clients.load(std::sync::atomic::Ordering::Acquire) as u32).to_be_bytes());
+        presence
+    });
 
     loop {
         tokio::select! {
             incoming_message = incoming.next() => match incoming_message {
                 Some(Ok(Message::Binary(frame))) if frame.first() == Some(&1) => {
-                    let _save_guard = room.save_lock.lock().await;
-                    let update_bytes = &frame[1..];
-                    let Ok(update) = Update::decode_v1(update_bytes) else { continue; };
-                    if room.doc.transact_mut().apply_update(update).is_err() { continue; }
-                    let (content, snapshot) = {
-                        let txn = room.doc.transact();
-                        (room.doc.get_or_insert_text("markdown").get_string(&txn), txn.encode_state_as_update_v1(&StateVector::default()))
+                    let update_bytes = frame[1..].to_vec();
+                    eprintln!("[collab] update received ({} bytes) for {relative_path}", update_bytes.len());
+                    let update = match Update::decode_v1(&update_bytes) {
+                        Ok(update) => update,
+                        Err(error) => {
+                            eprintln!("[collab] update decode failed for {relative_path}: {error}");
+                            continue;
+                        }
                     };
-                    if atomic_write(&room.state_path, &snapshot).is_err() { continue; }
-                    if let Ok(file) = ctx.vault.write_file(&relative_path, &content) {
-                        ctx.on_file_changed(&relative_path, &content);
-                        let mut outgoing = Vec::with_capacity(update_bytes.len() + 1);
-                        outgoing.push(1);
-                        outgoing.extend_from_slice(update_bytes);
-                        let _ = room.updates.send(outgoing);
-                        let _ = file;
+                    let update_result = {
+                        let mut txn = room.doc.transact_mut();
+                        txn.apply_update(update)
+                    };
+                    if let Err(error) = update_result {
+                        eprintln!("[collab] update apply failed for {relative_path}: {error}");
+                        continue;
                     }
+                    let revision = room.revision.fetch_add(1, std::sync::atomic::Ordering::AcqRel) + 1;
+                    let mut outgoing = Vec::with_capacity(update_bytes.len() + 1);
+                    outgoing.push(1);
+                    outgoing.extend_from_slice(&update_bytes);
+                    let _ = room.updates.send(outgoing);
+                    eprintln!("[collab] update broadcast as revision {revision} for {relative_path}");
+
+                    // Persist after a short quiet period, without holding up the
+                    // websocket reader so subsequent keystrokes still sync at once.
+                    schedule_collab_flush(room.clone(), ctx.clone(), relative_path.clone(), revision);
                 }
-                Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
+                Some(Ok(Message::Close(frame))) => {
+                    eprintln!("[collab] websocket closed for {relative_path}: {frame:?}");
+                    break;
+                }
+                None => {
+                    eprintln!("[collab] websocket stream ended for {relative_path}");
+                    break;
+                }
+                Some(Err(error)) => {
+                    eprintln!("[collab] websocket read failed for {relative_path}: {error}");
+                    break;
+                }
                 _ => {}
             },
             update = receiver.recv() => match update {

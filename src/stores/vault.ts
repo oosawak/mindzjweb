@@ -297,6 +297,19 @@ function createVaultStore() {
     }
   }
 
+  // Keep an open tab's in-memory content in sync with collaborative edits.
+  // The collaboration transport persists independently of the regular file
+  // save API, so ReadingView must be updated from the shared document state.
+  function updateOpenFileContent(relativePath: string, content: string) {
+    setOpenFiles((previous) => previous.map((file) =>
+      file.path === relativePath ? { ...file, content } : file,
+    ));
+    const active = activeFile();
+    if (active?.path === relativePath && active.content !== content) {
+      setActiveFile({ ...active, content });
+    }
+  }
+
   function openPreviewFile(
     relativePath: string,
     kind: Extract<FileContent["kind"], "image" | "document">,
@@ -353,6 +366,7 @@ function createVaultStore() {
     fileTree,
     activeFile,
     openFiles,
+    updateOpenFileContent,
     isLoading,
     error,
     // Actions

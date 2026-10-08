@@ -2,6 +2,7 @@ import { editLockStore } from "../stores/editLock";
 import { editorStore, type ViewMode } from "../stores/editor";
 import { confirmDialog } from "../components/common/ConfirmDialog";
 import { t } from "../i18n";
+import { isCollaborativeWebNote } from "./collaboration";
 
 export async function saveDraftBeforeLeaving(path: string): Promise<boolean> {
   if (!editorStore.isDirtyPath(path)) return true;
@@ -26,7 +27,7 @@ export async function requestViewModeChange(path: string, mode: ViewMode): Promi
 
   if (mode !== "reading" && current === "reading") {
     try {
-      if (!(await editLockStore.acquire(path))) return false;
+      if (!isCollaborativeWebNote(path) && !(await editLockStore.acquire(path))) return false;
     } catch (error) {
       console.error("Could not acquire edit lock:", error);
       return false;
@@ -35,7 +36,7 @@ export async function requestViewModeChange(path: string, mode: ViewMode): Promi
 
   if (mode === "reading" && current !== "reading") {
     if (!(await saveDraftBeforeLeaving(path))) return false;
-    await editLockStore.release(path);
+    if (!isCollaborativeWebNote(path)) await editLockStore.release(path);
   }
 
   editorStore.setViewMode(mode, path);
