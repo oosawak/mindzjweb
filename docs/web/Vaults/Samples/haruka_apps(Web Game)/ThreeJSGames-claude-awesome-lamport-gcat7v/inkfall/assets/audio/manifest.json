@@ -1,0 +1,275 @@
+{
+  "_comment": "音声マニフェスト。file の場所に mp3 を置けば自動で使われます(無いときは内蔵の簡易シンセ音)。prompt は tools/elevenlabs/generate_audio.py が ElevenLabs に送る英語プロンプト。",
+  "version": 1,
+  "basePath": "assets/audio/",
+  "bgm": {
+    "title": {
+      "file": "bgm/bgm_title.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 100000,
+      "prompt": "Dark synthwave title theme for an esports arena game. Pulsing analog bass, glossy neon pads, gated drums, confident and cool, 118 BPM, minor key, seamless loop, instrumental, no vocals."
+    },
+    "intro": {
+      "file": "bgm/bgm_intro.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 60000,
+      "prompt": "Cinematic electronic trailer underscore. Rising synth swells, deep sub hits, ticking arpeggios building anticipation, night city in the sky, 92 BPM, seamless loop, instrumental, no vocals."
+    },
+    "lobby": {
+      "file": "bgm/bgm_lobby.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 90000,
+      "prompt": "Chill but energetic lobby music for a competitive online game. Lo-fi house groove, warm electric piano chords, punchy kick, neon night vibe, 110 BPM, seamless loop, instrumental, no vocals."
+    },
+    "match": {
+      "file": "bgm/bgm_match.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 120000,
+      "prompt": "High-energy competitive match music. Driving electro-house with heavy sidechained bass, sharp synth stabs, breakbeat fills, ink-splashing chaos, 128 BPM, minor key, seamless loop, instrumental, no vocals."
+    },
+    "overdrive": {
+      "file": "bgm/bgm_overdrive.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 60000,
+      "prompt": "Final 20 seconds overdrive music. Faster, intense drum and bass energy, rising synth leads, alarm-like arps, maximum hype, 140 BPM, seamless loop, instrumental, no vocals."
+    },
+    "tag": {
+      "file": "bgm/bgm_tag.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 90000,
+      "prompt": "Tense yet playful chase music for a bomb tag game. Ticking percussion, wobbling bass, quirky synth plucks, suspenseful hits, 134 BPM, seamless loop, instrumental, no vocals."
+    },
+    "training": {
+      "file": "bgm/bgm_training.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 90000,
+      "prompt": "Focused practice-room music. Clean minimal techno, soft pads, steady groove, light and encouraging, 104 BPM, seamless loop, instrumental, no vocals."
+    },
+    "result": {
+      "file": "bgm/bgm_result.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 60000,
+      "prompt": "Victorious results screen music. Bright anthemic synth chords, big drums, celebratory but stylish, 112 BPM, major key, seamless loop, instrumental, no vocals."
+    },
+    "ending": {
+      "file": "bgm/bgm_ending.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 60000,
+      "prompt": "Reflective ending theme. Slow neon synth ballad, warm pads, gentle piano, distant city ambience, after the match, 84 BPM, seamless loop, instrumental, no vocals."
+    },
+    "credits": {
+      "file": "bgm/bgm_credits.mp3",
+      "loop": true,
+      "volume": 0.7,
+      "length_ms": 70000,
+      "prompt": "Staff roll music. Smooth retro-futuristic electro-funk, sparkling arpeggios, relaxed groove, 96 BPM, seamless loop, instrumental, no vocals."
+    }
+  },
+  "sfx": {
+    "ui_select": {
+      "file": "sfx/ui_select.mp3",
+      "volume": 0.8,
+      "duration": 0.5,
+      "prompt": "Sleek futuristic UI confirm, short digital blip with a soft glow, esports menu"
+    },
+    "ui_back": {
+      "file": "sfx/ui_back.mp3",
+      "volume": 0.8,
+      "duration": 0.5,
+      "prompt": "Futuristic UI cancel, short descending digital blip"
+    },
+    "ui_hover": {
+      "file": "sfx/ui_hover.mp3",
+      "volume": 0.4,
+      "duration": 0.5,
+      "prompt": "Very short subtle UI hover tick, glassy"
+    },
+    "ui_toggle": {
+      "file": "sfx/ui_toggle.mp3",
+      "volume": 0.7,
+      "duration": 0.5,
+      "prompt": "Short crisp UI toggle switch click, digital"
+    },
+    "shot": {
+      "file": "sfx/shot.mp3",
+      "volume": 0.7,
+      "duration": 0.5,
+      "prompt": "Paint blaster shot, wet pressurized ink squirt with a punchy pop, short"
+    },
+    "splat": {
+      "file": "sfx/splat.mp3",
+      "volume": 0.7,
+      "duration": 0.5,
+      "prompt": "Ink paint splat hitting a wall, wet splash, short"
+    },
+    "hit": {
+      "file": "sfx/hit.mp3",
+      "volume": 0.8,
+      "duration": 0.5,
+      "prompt": "Getting hit by a paint shot, wet thwack with a low electronic thud"
+    },
+    "hit_confirm": {
+      "file": "sfx/hit_confirm.mp3",
+      "volume": 0.7,
+      "duration": 0.5,
+      "prompt": "Hit marker confirmation sound, crisp high tick, competitive shooter"
+    },
+    "inkout": {
+      "file": "sfx/inkout.mp3",
+      "volume": 0.9,
+      "duration": 1.0,
+      "prompt": "Robot bursting into a big splash of paint, wet explosion with electronic glitch tail, not violent"
+    },
+    "respawn": {
+      "file": "sfx/respawn.mp3",
+      "volume": 0.8,
+      "duration": 1.0,
+      "prompt": "Respawn sound, rising digital shimmer and teleport beam"
+    },
+    "jump": {
+      "file": "sfx/jump.mp3",
+      "volume": 0.7,
+      "duration": 0.5,
+      "prompt": "Light robot jump, short pneumatic hiss with a spring"
+    },
+    "land": {
+      "file": "sfx/land.mp3",
+      "volume": 0.7,
+      "duration": 0.5,
+      "prompt": "Small robot landing on a metal floor, soft thud"
+    },
+    "land_big": {
+      "file": "sfx/land_big.mp3",
+      "volume": 0.9,
+      "duration": 1.0,
+      "prompt": "Heavy landing impact on a metal arena floor, deep boom with paint splash"
+    },
+    "flip": {
+      "file": "sfx/flip.mp3",
+      "volume": 0.9,
+      "duration": 1.0,
+      "prompt": "Gravity flip whoosh, swirling air with rising electronic sweep, world rotating"
+    },
+    "flip_fail": {
+      "file": "sfx/flip_fail.mp3",
+      "volume": 0.6,
+      "duration": 0.5,
+      "prompt": "Short low denied buzz, futuristic"
+    },
+    "stamp": {
+      "file": "sfx/stamp.mp3",
+      "volume": 1.0,
+      "duration": 1.5,
+      "prompt": "Ink stamp ground slam, massive bass drop impact with a big paint splash and shockwave"
+    },
+    "special_ready": {
+      "file": "sfx/special_ready.mp3",
+      "volume": 0.8,
+      "duration": 1.0,
+      "prompt": "Special ability charged, ascending synth arpeggio with power-up shimmer"
+    },
+    "bomb_throw": {
+      "file": "sfx/bomb_throw.mp3",
+      "volume": 0.8,
+      "duration": 0.6,
+      "prompt": "Throwing a glowing energy bomb, whoosh with electric crackle"
+    },
+    "bomb_boom": {
+      "file": "sfx/bomb_boom.mp3",
+      "volume": 1.0,
+      "duration": 1.5,
+      "prompt": "Gravity bomb explosion, deep reverse-swell then paint blast and warping sound"
+    },
+    "count": {
+      "file": "sfx/count.mp3",
+      "volume": 0.8,
+      "duration": 0.5,
+      "prompt": "Countdown beep, clean synth tone"
+    },
+    "go": {
+      "file": "sfx/go.mp3",
+      "volume": 0.9,
+      "duration": 1.0,
+      "prompt": "Match start horn, punchy synth stab with crowd-like energy"
+    },
+    "overdrive": {
+      "file": "sfx/overdrive.mp3",
+      "volume": 0.9,
+      "duration": 1.5,
+      "prompt": "Overdrive alarm, rising synth siren and bass hit, intense"
+    },
+    "round_end": {
+      "file": "sfx/round_end.mp3",
+      "volume": 0.9,
+      "duration": 1.5,
+      "prompt": "Round end buzzer, descending synth chord"
+    },
+    "win": {
+      "file": "sfx/win.mp3",
+      "volume": 0.9,
+      "duration": 2.0,
+      "prompt": "Victory fanfare, short triumphant synth brass and drums"
+    },
+    "lose": {
+      "file": "sfx/lose.mp3",
+      "volume": 0.8,
+      "duration": 2.0,
+      "prompt": "Defeat sting, short descending synth phrase, not sad"
+    },
+    "tag_pass": {
+      "file": "sfx/tag_pass.mp3",
+      "volume": 0.8,
+      "duration": 0.6,
+      "prompt": "Bomb passed to another player, sharp electric zap swoosh"
+    },
+    "tag_tick": {
+      "file": "sfx/tag_tick.mp3",
+      "volume": 0.6,
+      "duration": 0.5,
+      "prompt": "Bomb timer tick, sharp digital click"
+    },
+    "tag_boom": {
+      "file": "sfx/tag_boom.mp3",
+      "volume": 1.0,
+      "duration": 2.0,
+      "prompt": "Cartoon-styled big bomb explosion, boom with confetti-like sparkle tail, not gory"
+    },
+    "shove": {
+      "file": "sfx/shove.mp3",
+      "volume": 0.8,
+      "duration": 0.5,
+      "prompt": "Shove push, short air blast thump"
+    },
+    "whoosh": {
+      "file": "sfx/whoosh.mp3",
+      "volume": 0.7,
+      "duration": 1.0,
+      "prompt": "Fast cinematic whoosh through the night sky"
+    },
+    "sparkle": {
+      "file": "sfx/sparkle.mp3",
+      "volume": 0.6,
+      "duration": 1.0,
+      "prompt": "Glittering neon sparkle"
+    },
+    "lobby_join": {
+      "file": "sfx/lobby_join.mp3",
+      "volume": 0.8,
+      "duration": 0.6,
+      "prompt": "Player joined lobby notification, friendly two-tone synth chime"
+    }
+  },
+  "voice": {
+    "pattern": "voice/{lang}/{id}.mp3",
+    "volume": 1.0
+  }
+}

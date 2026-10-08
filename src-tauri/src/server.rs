@@ -460,6 +460,32 @@ async fn list_vaults(Query(query): Query<std::collections::HashMap<String, Strin
     Ok(Json(Value::Array(vaults)))
 }
 
+fn preview_assets_enabled(vault: &mindzj_lib::kernel::vault::Vault, relative_path: &str) -> bool {
+    let path = PathBuf::from(relative_path);
+    let mut directory = path.parent();
+    loop {
+        let marker = directory
+            .filter(|dir| !dir.as_os_str().is_empty())
+            .map(|dir| dir.join(".mindzj-preview.json"))
+            .unwrap_or_else(|| PathBuf::from(".mindzj-preview.json"));
+        let marker = marker.to_string_lossy().replace('\\', "/");
+        if let Ok(file) = vault.read_file(&marker) {
+            if let Some(enabled) = serde_json::from_str::<Value>(&file.content)
+                .ok()
+                .and_then(|config| config.get("allowCrossOriginAssets").and_then(Value::as_bool))
+            {
+                return enabled;
+            }
+        }
+        let Some(current) = directory else { break };
+        if current.as_os_str().is_empty() {
+            break;
+        }
+        directory = current.parent();
+    }
+    false
+}
+
 async fn asset(
     State(state): State<ServerState>,
     Path(relative_path): Path<String>,
@@ -504,9 +530,11 @@ async fn asset(
     };
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
-    // Vault HTML runs in an opaque-origin sandbox. Its ES modules and WASM
-    // files need CORS, but command APIs and unrelated vault files stay isolated.
-    if matches!(extension.as_str(), "js" | "mjs" | "wasm") {
+    // HTML previews run in an opaque-origin sandbox. A folder can opt in to
+    // cross-origin subresource loading by containing .mindzj-preview.json.
+    // The opt-in is scoped to files below that folder; command APIs are never
+    // covered by this CORS rule.
+    if preview_assets_enabled(&ctx.vault, &relative_path) {
         headers.insert(
             header::ACCESS_CONTROL_ALLOW_ORIGIN,
             HeaderValue::from_static("*"),
@@ -518,7 +546,7 @@ async fn asset(
         headers.insert(
             header::CONTENT_SECURITY_POLICY,
             HeaderValue::from_static(
-                "sandbox allow-scripts allow-forms allow-popups allow-downloads; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+                "sandbox allow-scripts allow-forms allow-popups allow-downloads allow-modals; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
             ),
         );
 

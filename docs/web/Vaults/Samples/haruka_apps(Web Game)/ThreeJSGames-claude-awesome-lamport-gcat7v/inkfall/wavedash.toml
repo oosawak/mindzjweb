@@ -1,0 +1,6 @@
+# Wavedash の設定(INKFALL)
+# game_id は Wavedash Developer Portal で作成したプロジェクトの ID を入れてください。
+# ※ API キー(WAVEDASH_TOKEN / credentials.json)は絶対にコミットしないこと。
+game_id = ""
+upload_dir = "dist"
+entrypoint = "index.html"

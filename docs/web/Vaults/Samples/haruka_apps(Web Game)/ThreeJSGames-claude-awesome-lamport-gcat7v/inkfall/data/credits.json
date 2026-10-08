@@ -1,0 +1,16 @@
+{
+  "_comment": "クレジット表記。タイトルの「クレジット」とスタッフロールの両方で使います。",
+  "sections": [
+    { "role": { "ja": "ゲームデザイン・プログラム・ディレクション", "en": "Game Design, Programming & Direction" }, "names": ["haruka_apps"] },
+    { "role": { "ja": "キャラクター・ステージ・VFX", "en": "Characters, Arena & VFX" }, "names": ["haruka_apps"] },
+    { "role": { "ja": "音楽", "en": "Music" }, "names": [{ "name": "haruka_apps", "note": { "ja": "ElevenLabs Eleven Music で制作", "en": "Produced with ElevenLabs Eleven Music" } }] },
+    { "role": { "ja": "効果音", "en": "Sound Effects" }, "names": [{ "name": "haruka_apps", "note": { "ja": "ElevenLabs Sound Effects で制作", "en": "Produced with ElevenLabs Sound Effects" } }] },
+    { "role": { "ja": "ボイス", "en": "Voices" }, "names": [{ "name": { "ja": "AI ボイス(実況 / ナビ)", "en": "AI Voices (Announcer / Navi)" }, "note": { "ja": "ElevenLabs Eleven v4 で生成", "en": "Generated with ElevenLabs Eleven v4" } }] },
+    { "role": { "ja": "オンライン対戦", "en": "Online Multiplayer" }, "names": [{ "name": "Wavedash SDK", "note": "© Wavedash — Apache License 2.0 (provided by the Wavedash platform at runtime)" }] },
+    { "role": { "ja": "3D エンジン", "en": "3D Engine" }, "names": [{ "name": "three.js r186", "note": "© 2010-2026 three.js authors — MIT License" }] },
+    { "role": { "ja": "フォント", "en": "Font" }, "names": [{ "name": "Rajdhani", "note": "© 2014 Indian Type Foundry — SIL Open Font License 1.1" }] },
+    { "role": { "ja": "開発サポート", "en": "Development Assistance" }, "names": ["Claude (Anthropic)"] }
+  ],
+  "copyright": { "ja": "© 2026 haruka_apps. All Rights Reserved.", "en": "© 2026 haruka_apps. All Rights Reserved." },
+  "notice": { "ja": "キャラクター・アリーナ・3D モデルはすべてオリジナルで、コードで生成しています。", "en": "All characters, arenas and 3D models are original and generated in code." }
+}

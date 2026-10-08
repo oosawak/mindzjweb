@@ -1,0 +1,25 @@
+{
+  "_comment": "クレジット表記。タイトル画面の「クレジット」とスタッフロールの両方で使います。",
+  "sections": [
+    { "role": { "ja": "ゲームデザイン・プログラム・ディレクション", "en": "Game Design, Programming & Direction" },
+      "names": ["haruka_apps"] },
+    { "role": { "ja": "キャラクター「ころりん」「ゆめぼし」", "en": "Characters \"Kororin\" & \"Yumeboshi\"" },
+      "names": ["haruka_apps"] },
+    { "role": { "ja": "ステージ・えんしゅつ", "en": "Stage & VFX Design" },
+      "names": ["haruka_apps"] },
+    { "role": { "ja": "おんがく", "en": "Music" },
+      "names": [{ "name": "haruka_apps", "note": { "ja": "ElevenLabs Eleven Music で せいさく", "en": "Produced with ElevenLabs Eleven Music" } }] },
+    { "role": { "ja": "こうかおん", "en": "Sound Effects" },
+      "names": [{ "name": "haruka_apps", "note": { "ja": "ElevenLabs Sound Effects で せいさく", "en": "Produced with ElevenLabs Sound Effects" } }] },
+    { "role": { "ja": "こえ", "en": "Voices" },
+      "names": [{ "name": { "ja": "AI ボイス", "en": "AI Voices" }, "note": { "ja": "ElevenLabs Eleven v4 で せいさく", "en": "Generated with ElevenLabs Eleven v4" } }] },
+    { "role": { "ja": "3D エンジン", "en": "3D Engine" },
+      "names": [{ "name": "three.js r186", "note": "© 2010-2026 three.js authors — MIT License" }] },
+    { "role": { "ja": "フォント", "en": "Font" },
+      "names": [{ "name": "M PLUS Rounded 1c", "note": "© The M+ FONTS Project Authors — SIL Open Font License 1.1" }] },
+    { "role": { "ja": "かいはつ サポート", "en": "Development Assistance" },
+      "names": ["Claude (Anthropic)"] }
+  ],
+  "copyright": { "ja": "© 2026 haruka_apps. All Rights Reserved.", "en": "© 2026 haruka_apps. All Rights Reserved." },
+  "notice": { "ja": "このゲームの キャラクター・ステージ・3Dモデルは すべて オリジナルです。", "en": "All characters, stages and 3D models in this game are original works." }
+}

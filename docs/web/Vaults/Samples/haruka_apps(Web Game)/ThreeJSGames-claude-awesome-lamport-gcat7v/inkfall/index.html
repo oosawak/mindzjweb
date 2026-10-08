@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#07081a">
+  <meta name="description" content="INKFALL — gravity-flipping ink turf war. Paint all six faces of the cube with your team. Online multiplayer, CPU matches and solo practice. By haruka_apps.">
+  <meta name="author" content="haruka_apps">
+  <title>INKFALL</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas" aria-label="game"></canvas>
+    <div id="ui-root"></div>
+    <div id="touch-root" aria-hidden="true"></div>
+    <div id="subtitle-root" aria-live="polite"></div>
+    <div id="fader"></div>
+    <div id="boot">
+      <div class="boot-inner">
+        <div class="logo-main boot-logo" data-text="INKFALL">INKFALL</div>
+        <div class="boot-bar"><div class="boot-bar-fill" id="boot-bar-fill"></div></div>
+        <div class="boot-msg" id="boot-msg">Loading…</div>
+        <button class="btn primary boot-start hidden" id="boot-start" type="button">CLICK TO START</button>
+        <div class="boot-note">🔊 SOUND ON</div>
+      </div>
+      <div class="boot-copy">© 2026 haruka_apps</div>
+    </div>
+    <noscript><div class="noscript">Please enable JavaScript.</div></noscript>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

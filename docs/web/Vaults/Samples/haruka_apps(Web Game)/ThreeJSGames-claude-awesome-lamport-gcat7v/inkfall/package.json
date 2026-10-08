@@ -1,0 +1,15 @@
+{
+  "name": "inkfall",
+  "private": true,
+  "version": "1.0.0",
+  "description": "INKFALL — gravity-flipping ink turf war (three.js r186 + Wavedash SDK)",
+  "author": "haruka_apps",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server 8766",
+    "test": "node --test tests/wire.test.mjs",
+    "e2e": "node tests/mp-fake-sdk.mjs",
+    "dist": "python3 tools/make_dist.py"
+  }
+}

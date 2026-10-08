@@ -4497,7 +4497,8 @@ const App: Component = () => {
                                                 .split(".")
                                                 .pop()
                                                 ?.toLowerCase() ?? "",
-                                        ))
+                                        ) &&
+                                        !/\.(html?|url)$/i.test(vaultStore.activeFile()?.path ?? ""))
                                     }>
                                     <Toolbar />
                                 </Show>

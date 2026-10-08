@@ -1,0 +1,52 @@
+{
+  "_comment": "音声マニフェスト。file のパスに mp3 を置けば自動で使われます(無いときはコード内の簡易シンセ音)。prompt は tools/elevenlabs/generate_audio.py が ElevenLabs へ送る英語プロンプトです。",
+  "version": 1,
+  "basePath": "assets/audio/",
+  "bgm": {
+    "title":   { "file": "bgm/bgm_title.mp3",   "loop": true, "volume": 0.75, "length_ms": 90000,
+                 "prompt": "Cheerful, dreamy children's game title theme. Bright glockenspiel and marimba melody over soft synth pads, light pizzicato strings, gentle bouncy rhythm, sense of floating in a pastel sky full of cubes. 100 BPM, major key, seamless loop, instrumental, no vocals." },
+    "story":   { "file": "bgm/bgm_story.mp3",   "loop": true, "volume": 0.7,  "length_ms": 60000,
+                 "prompt": "Gentle storybook cinematic underscore for a kids' game cutscene. Celesta, harp arpeggios, warm strings, soft music box, wonder and a hint of mystery, slow 72 BPM, seamless loop, instrumental, no vocals." },
+    "stage1":  { "file": "bgm/bgm_stage1.mp3",  "loop": true, "volume": 0.7,  "length_ms": 90000,
+                 "prompt": "Playful upbeat puzzle-platformer stage music for children. Bouncy synth bass, plucky marimba lead, claps and light drums, curious and happy mood, 112 BPM, major key, seamless loop, instrumental, no vocals." },
+    "stage2":  { "file": "bgm/bgm_stage2.mp3",  "loop": true, "volume": 0.7,  "length_ms": 90000,
+                 "prompt": "Energetic yet cute climbing-tower level music. Funky clavinet and chiptune-style square lead, driving drums, slightly mysterious minor-to-major chord changes, sense of going upward, 120 BPM, seamless loop, instrumental, no vocals." },
+    "stage3":  { "file": "bgm/bgm_stage3.mp3",  "loop": true, "volume": 0.7,  "length_ms": 90000,
+                 "prompt": "Exciting final-stage music in a starry night sky. Sparkling synth arpeggios, soaring strings, bright bells, uplifting adventurous drums, magical and heroic but kid friendly, 128 BPM, major key, seamless loop, instrumental, no vocals." },
+    "result":  { "file": "bgm/bgm_result.mp3",  "loop": true, "volume": 0.7,  "length_ms": 45000,
+                 "prompt": "Happy celebration jingle and loop for a results screen in a kids' game. Brass stabs, glockenspiel, claps, joyful and proud, 104 BPM, seamless loop, instrumental, no vocals." },
+    "ending":  { "file": "bgm/bgm_ending.mp3",  "loop": true, "volume": 0.7,  "length_ms": 60000,
+                 "prompt": "Warm, emotional ending theme for a cute adventure game. Piano and strings with music box, gentle choir pad (no lyrics), feeling of the night sky lighting up again, 80 BPM, seamless loop, instrumental, no vocals." },
+    "credits": { "file": "bgm/bgm_credits.mp3", "loop": true, "volume": 0.7,  "length_ms": 60000,
+                 "prompt": "Relaxed, sparkling staff-roll music for a children's game. Soft electric piano, celesta, light shuffle drums, dreamy pads, flying through a starry sky, 88 BPM, seamless loop, instrumental, no vocals." }
+  },
+  "sfx": {
+    "ui_select":    { "file": "sfx/ui_select.mp3",    "volume": 0.8, "duration": 0.5, "prompt": "Cute bright UI confirm blip, soft bubbly pop with a tiny sparkle, game menu button" },
+    "ui_back":      { "file": "sfx/ui_back.mp3",      "volume": 0.8, "duration": 0.5, "prompt": "Soft cute UI cancel sound, gentle descending two-note blip, game menu" },
+    "ui_hover":     { "file": "sfx/ui_hover.mp3",     "volume": 0.4, "duration": 0.5, "prompt": "Very short soft tick for UI hover, tiny wooden click, quiet" },
+    "ui_toggle":    { "file": "sfx/ui_toggle.mp3",    "volume": 0.7, "duration": 0.5, "prompt": "Short cute toggle switch sound, two quick plucky notes, game settings menu" },
+    "jump":         { "file": "sfx/jump.mp3",         "volume": 0.8, "duration": 0.5, "prompt": "Cartoon jump sound, springy rising boing, cute and light, short" },
+    "land":         { "file": "sfx/land.mp3",         "volume": 0.8, "duration": 0.5, "prompt": "Soft squishy landing thump of a small round mochi-like character on a plastic block, short" },
+    "land_big":     { "file": "sfx/land_big.mp3",     "volume": 0.9, "duration": 0.8, "prompt": "Heavy but cute landing impact, deep soft thud with a bouncy squish and small whoosh tail" },
+    "gravity":      { "file": "sfx/gravity.mp3",      "volume": 0.9, "duration": 0.8, "prompt": "Magical gravity shift whoosh, rising swirling air sweep with sparkly chime, the world rotates, cartoon game" },
+    "gravity_fail": { "file": "sfx/gravity_fail.mp3", "volume": 0.6, "duration": 0.5, "prompt": "Short soft dull buzz meaning not possible, gentle low blip, cute game UI" },
+    "star":         { "file": "sfx/star.mp3",         "volume": 0.9, "duration": 0.8, "prompt": "Collecting a star piece, bright ascending glockenspiel arpeggio with sparkle shimmer, cheerful game pickup" },
+    "goal_open":    { "file": "sfx/goal_open.mp3",    "volume": 0.9, "duration": 1.5, "prompt": "Magical gate opening chime, shimmering harp glissando and bells, rewarding" },
+    "goal":         { "file": "sfx/goal.mp3",         "volume": 1.0, "duration": 2.0, "prompt": "Reaching the goal star, triumphant short fanfare with bells, sparkles and a soft magical whoosh, kids game" },
+    "hazard":       { "file": "sfx/hazard.mp3",       "volume": 0.8, "duration": 0.6, "prompt": "Cartoon electric zap, short buzzy crackle, playful not scary" },
+    "respawn":      { "file": "sfx/respawn.mp3",      "volume": 0.8, "duration": 0.8, "prompt": "Character respawn sound, soft magical rising shimmer with a gentle pop" },
+    "fall_out":     { "file": "sfx/fall_out.mp3",     "volume": 0.8, "duration": 1.0, "prompt": "Cartoon falling away into the sky, descending slide whistle, funny and light" },
+    "crumble":      { "file": "sfx/crumble.mp3",      "volume": 0.8, "duration": 0.8, "prompt": "Cute stone block crumbling apart, light rubble and soft crunch, cartoon" },
+    "crack":        { "file": "sfx/crack.mp3",        "volume": 0.7, "duration": 0.5, "prompt": "Small crack sound of a block starting to break, short crisp tick" },
+    "go":           { "file": "sfx/go.mp3",           "volume": 0.8, "duration": 0.6, "prompt": "Start signal, bright short whistle-like synth chord, game start GO" },
+    "whoosh":       { "file": "sfx/whoosh.mp3",       "volume": 0.7, "duration": 1.0, "prompt": "Soft cinematic air whoosh, camera swooping through the sky" },
+    "shatter":      { "file": "sfx/shatter.mp3",      "volume": 0.9, "duration": 1.5, "prompt": "Giant magical star shattering into glittering pieces, crystal glass break with sparkling chimes, fantasy, not violent" },
+    "sparkle":      { "file": "sfx/sparkle.mp3",      "volume": 0.7, "duration": 0.8, "prompt": "Twinkling sparkle sound, magic fairy dust chimes, short" },
+    "rank":         { "file": "sfx/rank.mp3",         "volume": 0.9, "duration": 1.0, "prompt": "Stamp landing with a thump followed by a bright celebration chime, results screen" },
+    "pop":          { "file": "sfx/pop.mp3",          "volume": 0.5, "duration": 0.5, "prompt": "Small soft firework pop with tiny crackle, distant and cute" }
+  },
+  "voice": {
+    "pattern": "voice/{lang}/{id}.mp3",
+    "volume": 1.0
+  }
+}

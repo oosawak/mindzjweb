@@ -52,8 +52,10 @@ export const FilePreview: Component<{
     });
     const htmlPreviewUrl = createMemo(() => {
         const url = htmlAssetUrl();
-        if (!url || previewRevision() === 0) return url;
-        return `${url}${url.includes("?") ? "&" : "?"}mindzj_preview=${previewRevision()}`;
+        if (!url) return url;
+        const query = [`mindzj_preview_policy=2`];
+        if (previewRevision() > 0) query.push(`mindzj_preview=${previewRevision()}`);
+        return `${url}${url.includes("?") ? "&" : "?"}${query.join("&")}`;
     });
 
     async function beginSourceEdit() {
@@ -314,7 +316,7 @@ export const FilePreview: Component<{
                             <iframe
                                 src={htmlPreviewUrl()}
                                 title={fileName()}
-                                sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+                                sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals"
                                 referrerPolicy="no-referrer"
                                 onLoad={(event) => {
                                     if (photoCraftImagePath()) void sendPhotoCraftImage(event.currentTarget);
