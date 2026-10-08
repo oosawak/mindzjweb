@@ -73,6 +73,18 @@ export class PagesDemoBackend implements MindZjBackend {
     const all = await manifest();
     const local = files();
     const published = all.files.filter((path) => path.startsWith(`${activeVault}/`)).map((path) => path.slice(activeVault.length + 1));
+    // Older demo versions stored published-file deletions as tombstones.
+    // Published files are the immutable baseline, so discard those markers
+    // and let reads fall back to the deployed copy.
+    let clearedPublishedDeletions = false;
+    for (const path of published) {
+      const key = `${activeVault}/${path}`;
+      if (local[key]?.deleted) {
+        delete local[key];
+        clearedPublishedDeletions = true;
+      }
+    }
+    if (clearedPublishedDeletions) saveFiles(local);
     const userPaths = Object.entries(local).filter(([path, value]) => path.startsWith(`${activeVault}/`) && !value.deleted && !value.isDir).map(([path]) => path.slice(activeVault.length + 1));
     const directories = new Set(Object.entries(local).filter(([path, value]) => path.startsWith(`${activeVault}/`) && !value.deleted && value.isDir).map(([path]) => path.slice(activeVault.length + 1)));
     for (const path of [...published, ...userPaths]) {
@@ -117,14 +129,23 @@ export class PagesDemoBackend implements MindZjBackend {
       }
       case "delete_file": case "delete_dir": {
         const path = vaultRelative(String(args.relativePath || ""));
-        const affected = command === "delete_dir" ? paths.filter((candidate) => candidate === path || candidate.startsWith(`${path}/`)) : [path];
-        for (const candidate of affected) local[`${activeVault}/${candidate}`] = { content: "", deleted: true };
-        for (const key of Object.keys(local)) if (command === "delete_dir" && key.startsWith(`${activeVault}/${path}/`)) local[key] = { content: "", deleted: true };
+        if (command === "delete_file") {
+          // Removing an edited published file resets it to the deployed
+          // sample. Removing a browser-created file removes it entirely.
+          delete local[`${activeVault}/${path}`];
+        } else {
+          // Drop only browser-local overrides and additions under the folder.
+          // Published files naturally reappear from the manifest-backed Vault.
+          const prefix = `${activeVault}/${path}`;
+          for (const key of Object.keys(local)) {
+            if (key === prefix || key.startsWith(`${prefix}/`)) delete local[key];
+          }
+        }
         saveFiles(local); result = undefined; break;
       }
       case "rename_file": {
         const from = vaultRelative(String(args.from || "")); const to = vaultRelative(String(args.to || ""));
-        const content = await text(from); local[`${activeVault}/${to}`] = { content }; local[`${activeVault}/${from}`] = { content: "", deleted: true }; saveFiles(local); result = undefined; break;
+        const content = await text(from); local[`${activeVault}/${to}`] = { content }; delete local[`${activeVault}/${from}`]; saveFiles(local); result = undefined; break;
       }
       case "get_file_metadata": {
         const path = vaultRelative(String(args.relativePath || "")); const body = await text(path);
