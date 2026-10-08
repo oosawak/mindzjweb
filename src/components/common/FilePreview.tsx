@@ -7,6 +7,8 @@ import { getFileExtension } from "../../utils/fileTypes";
 import { toVaultAssetUrl } from "../../utils/vaultPaths";
 import { readInternetShortcutUrl } from "../../utils/openFileRouted";
 import { t } from "../../i18n";
+import { editLockStore } from "../../stores/editLock";
+import type { FileContent } from "../../stores/vault";
 
 export const FilePreview: Component<{
     filePath: string;
@@ -18,7 +20,14 @@ export const FilePreview: Component<{
     const isInternetShortcut = createMemo(() => extension() === "URL");
     const [shortcutUrl, setShortcutUrl] = createSignal<string | null>(null);
     const [shortcutError, setShortcutError] = createSignal("");
+    const [editingSource, setEditingSource] = createSignal(false);
+    const [sourceContent, setSourceContent] = createSignal("");
+    const [sourceError, setSourceError] = createSignal("");
+    const [sourceBusy, setSourceBusy] = createSignal(false);
+    const [sourceLockAcquired, setSourceLockAcquired] = createSignal(false);
+    const [previewRevision, setPreviewRevision] = createSignal(0);
     const previewableMedia = createMemo(() => ["HTML", "HTM", "URL", "PDF", "MP3", "M4A", "WAV", "OGG", "FLAC", "AAC", "OPUS", "MP4", "M4V", "MOV", "AVI", "MKV", "WEBM", "OGV", "GLB", "GLTF"].includes(extension()));
+    const supportsSourceEdit = createMemo(() => ["HTML", "HTM", "URL"].includes(extension()));
     const isAudio = createMemo(() => ["MP3", "M4A", "WAV", "OGG", "FLAC", "AAC", "OPUS"].includes(extension()));
     const isVideo = createMemo(() => ["MP4", "M4V", "MOV", "AVI", "MKV", "WEBM", "OGV"].includes(extension()));
     const isModel = createMemo(() => ["GLB", "GLTF"].includes(extension()));
@@ -40,6 +49,70 @@ export const FilePreview: Component<{
         const url = assetUrl();
         if (!url || !photoCraftImagePath()) return url;
         return `${url}?mindzj_photocraft_bridge=1`;
+    });
+    const htmlPreviewUrl = createMemo(() => {
+        const url = htmlAssetUrl();
+        if (!url || previewRevision() === 0) return url;
+        return `${url}${url.includes("?") ? "&" : "?"}mindzj_preview=${previewRevision()}`;
+    });
+
+    async function beginSourceEdit() {
+        setSourceBusy(true);
+        setSourceError("");
+        try {
+            if (!(await editLockStore.acquire(props.filePath))) return;
+            setSourceLockAcquired(true);
+            const file = await invoke<FileContent>("read_file", { relativePath: props.filePath });
+            setSourceContent(file.content);
+            setEditingSource(true);
+        } catch (error) {
+            console.error("Could not open source editor:", error);
+            setSourceError(error instanceof Error ? error.message : String(error));
+            if (sourceLockAcquired()) await editLockStore.release(props.filePath);
+            setSourceLockAcquired(false);
+        } finally {
+            setSourceBusy(false);
+        }
+    }
+
+    async function cancelSourceEdit() {
+        setEditingSource(false);
+        if (sourceLockAcquired()) await editLockStore.release(props.filePath);
+        setSourceLockAcquired(false);
+    }
+
+    async function saveSource() {
+        if (sourceBusy()) return;
+        setSourceBusy(true);
+        setSourceError("");
+        try {
+            const saved = await invoke<FileContent>("write_file", {
+                relativePath: props.filePath,
+                content: sourceContent(),
+            });
+            vaultStore.applySavedFileContent({ ...saved, kind: "document" });
+            setPreviewRevision((revision) => revision + 1);
+            setEditingSource(false);
+            if (sourceLockAcquired()) await editLockStore.release(props.filePath);
+            setSourceLockAcquired(false);
+        } catch (error) {
+            console.error("Could not save source file:", error);
+            setSourceError(error instanceof Error ? error.message : String(error));
+        } finally {
+            setSourceBusy(false);
+        }
+    }
+
+    onCleanup(() => {
+        if (sourceLockAcquired()) void editLockStore.release(props.filePath);
+    });
+
+    onMount(() => {
+        const handleForceSave = () => {
+            if (editingSource() && props.active !== false) void saveSource();
+        };
+        document.addEventListener("mindzj:force-save", handleForceSave);
+        onCleanup(() => document.removeEventListener("mindzj:force-save", handleForceSave));
     });
 
     async function sendPhotoCraftImage(frame: HTMLIFrameElement) {
@@ -89,6 +162,7 @@ export const FilePreview: Component<{
 
     createEffect(() => {
         if (!isInternetShortcut() || !props.active) return;
+        previewRevision();
         const relativePath = props.filePath;
         let cancelled = false;
         setShortcutUrl(null);
@@ -116,7 +190,7 @@ export const FilePreview: Component<{
                 background: "var(--mz-bg-primary)",
             }}
         >
-            <Show
+            <Show when={editingSource()} fallback={<Show
                 when={props.kind === "image"}
                 fallback={
                     <Show
@@ -206,6 +280,16 @@ export const FilePreview: Component<{
                         </div>
                         </div>}
                     >
+                        <>
+                        <Show when={supportsSourceEdit()}>
+                            <div style={{ display: "flex", "align-items": "center", gap: "8px", padding: "8px 12px", "border-bottom": "1px solid var(--mz-border)", background: "var(--mz-bg-secondary)" }}>
+                                <strong style={{ flex: "1", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap", color: "var(--mz-text-primary)" }}>{fileName()}</strong>
+                                <button disabled={sourceBusy()} onClick={() => void beginSourceEdit()} style={actionButtonStyle(false)}>
+                                    {sourceBusy() ? t("filePreview.loadingSource") : t("filePreview.editSource")}
+                                </button>
+                            </div>
+                        </Show>
+                        <div style={{ display: "flex", "flex-direction": "column", flex: "1", "min-height": "0" }}>
                         <Show when={isInternetShortcut()}>
                             <Show
                                 when={shortcutUrl()}
@@ -228,7 +312,7 @@ export const FilePreview: Component<{
                         </Show>
                         <Show when={extension() === "HTML" || extension() === "HTM"}>
                             <iframe
-                                src={htmlAssetUrl()}
+                                src={htmlPreviewUrl()}
                                 title={fileName()}
                                 sandbox="allow-scripts allow-forms allow-popups allow-downloads"
                                 referrerPolicy="no-referrer"
@@ -259,6 +343,8 @@ export const FilePreview: Component<{
                         <Show when={isModel()}>
                             <ModelPreview src={assetUrl()} title={fileName()} />
                         </Show>
+                        </div>
+                        </>
                     </Show>
                 }
             >
@@ -290,6 +376,24 @@ export const FilePreview: Component<{
                             "box-shadow": "0 12px 40px rgba(0,0,0,0.22)",
                             background: "transparent",
                         }}
+                    />
+                </div>
+            </Show>}>
+                <div style={{ display: "flex", "flex-direction": "column", flex: "1", "min-height": "0" }}>
+                    <div style={{ display: "flex", "align-items": "center", gap: "8px", padding: "8px 12px", "border-bottom": "1px solid var(--mz-border)", background: "var(--mz-bg-secondary)" }}>
+                        <strong style={{ flex: "1", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap", color: "var(--mz-text-primary)" }}>{fileName()}</strong>
+                        <button disabled={sourceBusy()} onClick={() => void saveSource()} style={actionButtonStyle(true)}>{t("common.save")}</button>
+                        <button disabled={sourceBusy()} onClick={() => void cancelSourceEdit()} style={actionButtonStyle(false)}>{t("common.cancel")}</button>
+                    </div>
+                    <Show when={sourceError()}>
+                        <div role="alert" style={{ padding: "8px 12px", color: "var(--mz-danger, #ef6b73)", "font-size": "var(--mz-font-size-sm)" }}>{sourceError()}</div>
+                    </Show>
+                    <textarea
+                        aria-label={`${fileName()} source`}
+                        spellcheck={false}
+                        value={sourceContent()}
+                        onInput={(event) => setSourceContent(event.currentTarget.value)}
+                        style={{ flex: "1", width: "100%", "min-height": "0", resize: "none", border: "0", outline: "none", padding: "16px", color: "var(--mz-text-primary)", background: "var(--mz-bg-primary)", "font-family": "var(--mz-font-mono, monospace)", "font-size": "13px", "line-height": "1.55", "tab-size": "4" }}
                     />
                 </div>
             </Show>
