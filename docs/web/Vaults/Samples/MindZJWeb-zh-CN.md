@@ -29,6 +29,14 @@ MindZJWeb 是 [MindZJ](https://zenn.dev/superjohn/articles/752679bdcdc37e) 的 W
 
 在左侧列表中选择笔记即可阅读。选择“编辑”进行修改，然后点击“保存”。可通过侧边栏菜单添加文件和文件夹。
 
+## 开发中的功能
+
+- Google Group 用户认证
+- 连接 T2Code（计划仅在连接 Local AI Server 时提供）
+- 音乐文件 Stem 分离及 MIDI 转换（计划仅在连接 Local AI Server 时提供）
+
+这些功能仍在规划或开发中，目前尚不可用。
+
 ## 行业示例
 
 打开 [英文行业示例](Sample-en/Industry%20Samples.md)，查看游戏开发、软件、视频制作、教育研究、制造与建筑领域的虚构笔记。也可查看[日文示例](Sample-ja/業界別サンプル.md)。

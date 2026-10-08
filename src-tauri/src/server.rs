@@ -1,5 +1,5 @@
 use axum::{
-    extract::{DefaultBodyLimit, Path, Query, State},
+    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, DefaultBodyLimit, Path, Query, State},
     http::{header, HeaderValue, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -12,9 +12,13 @@ use mindzj_lib::kernel::{
     AppState,
 };
 use serde_json::{json, Value};
-use std::{collections::HashMap, net::SocketAddr, path::PathBuf, sync::{Arc, Mutex}, time::{Duration, Instant}};
+use std::{collections::{HashMap, HashSet}, net::SocketAddr, path::PathBuf, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use tower_http::services::ServeDir;
 use uuid::Uuid;
+use yrs::{updates::decoder::Decode, Doc, GetString, OffsetKind, Options, ReadTxn, StateVector, Text, Transact, Update};
+use tokio::sync::broadcast;
+use futures_util::{SinkExt, StreamExt};
+use sha2::{Digest, Sha256};
 
 const WEB_CLIENT: &str = "mindzj-web";
 
@@ -22,6 +26,16 @@ const WEB_CLIENT: &str = "mindzj-web";
 struct ServerState {
     kernel: Arc<AppState>,
     edit_leases: Arc<Mutex<HashMap<String, EditLease>>>,
+    collab_rooms: Arc<Mutex<HashMap<String, Arc<CollabRoom>>>>,
+    active_collab_paths: Arc<Mutex<HashSet<String>>>,
+}
+
+struct CollabRoom {
+    doc: Doc,
+    updates: broadcast::Sender<Vec<u8>>,
+    clients: std::sync::atomic::AtomicUsize,
+    state_path: PathBuf,
+    save_lock: tokio::sync::Mutex<()>,
 }
 
 struct EditLease {
@@ -137,6 +151,13 @@ fn verify_edit_lease<'a>(
     }
 
     let key = edit_lock_key(state, relative_path)?;
+    if state.active_collab_paths.lock().map_err(|_| ApiError::bad_request("Collaboration state unavailable"))?.contains(&key) {
+        return Err(ApiError {
+            status: StatusCode::LOCKED,
+            code: "COLLABORATIVE_EDIT_ACTIVE",
+            message: "This file is currently being edited in a collaborative session".into(),
+        });
+    }
     let client_id = optional_string(args, "clientId").unwrap_or_default();
     let token = optional_string(args, "editLockToken").unwrap_or_default();
     let mut leases = state.edit_leases.lock().map_err(|_| ApiError::bad_request("Edit lock state unavailable"))?;
@@ -156,6 +177,164 @@ fn verify_edit_lease<'a>(
             message: "Acquire the edit lock before saving this file".into(),
         }),
     }
+}
+
+fn collab_state_path(ctx: &mindzj_lib::kernel::VaultContext, room_key: &str) -> PathBuf {
+    let hash = hex::encode(Sha256::digest(room_key.as_bytes()));
+    ctx.vault.root().join(".mindzj").join("collab").join(format!("{hash}.bin"))
+}
+
+fn atomic_write(path: &std::path::Path, bytes: &[u8]) -> Result<(), ApiError> {
+    let parent = path.parent().ok_or_else(|| ApiError::bad_request("Invalid collaboration state path"))?;
+    std::fs::create_dir_all(parent).map_err(|e| ApiError::bad_request(e.to_string()))?;
+    let temporary = parent.join(format!(".collab-{}.tmp", Uuid::new_v4()));
+    std::fs::write(&temporary, bytes).map_err(|e| ApiError::bad_request(e.to_string()))?;
+    std::fs::rename(&temporary, path).map_err(|e| {
+        let _ = std::fs::remove_file(&temporary);
+        ApiError::bad_request(e.to_string())
+    })
+}
+
+fn get_or_create_collab_room(
+    state: &ServerState,
+    relative_path: &str,
+) -> Result<(String, Arc<CollabRoom>, Arc<mindzj_lib::kernel::VaultContext>), ApiError> {
+    let ctx = context(state)?;
+    let path = PathBuf::from(relative_path);
+    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    if !matches!(extension.as_str(), "md" | "markdown" | "mdx") {
+        return Err(ApiError::bad_request("Collaborative editing is available for Markdown files only"));
+    }
+    let contents = ctx.vault.read_file(relative_path).map_err(ApiError::from_kernel)?.content;
+    let key = edit_lock_key(state, relative_path)?;
+    if state.edit_leases.lock().map_err(|_| ApiError::bad_request("Edit lock state unavailable"))?.get(&key).is_some_and(|lease| lease.expires_at > Instant::now()) {
+        return Err(ApiError {
+            status: StatusCode::LOCKED,
+            code: "EDIT_LOCK_ACTIVE",
+            message: "This file is already open in the regular editor. Close edit mode before starting collaborative editing.".into(),
+        });
+    }
+    let mut rooms = state.collab_rooms.lock().map_err(|_| ApiError::bad_request("Collaboration state unavailable"))?;
+    if let Some(room) = rooms.get(&key) {
+        room.clients.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        return Ok((key, room.clone(), ctx));
+    }
+
+    // Yjs indexes text in UTF-16 code units; use the same indexing for
+    // Japanese and emoji offsets exchanged with CodeMirror.
+    let doc = Doc::with_options(Options { offset_kind: OffsetKind::Utf16, ..Options::default() });
+    let text = doc.get_or_insert_text("markdown");
+    let state_path = collab_state_path(&ctx, &key);
+    let restored_snapshot = std::fs::read(&state_path)
+        .ok()
+        .and_then(|snapshot| Update::decode_v1(&snapshot).ok())
+        .is_some_and(|update| doc.transact_mut().apply_update(update).is_ok());
+    if !restored_snapshot && !contents.is_empty() {
+        text.insert(&mut doc.transact_mut(), 0, &contents);
+    }
+    let recovered = text.get_string(&doc.transact());
+    if recovered != contents {
+        // Preserve a file changed outside the collaboration session before
+        // restoring the last durable collaborative state.
+        let conflict_path = format!("{relative_path}.external-{}.md", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
+        if ctx.vault.write_file(&conflict_path, &contents).is_ok() {
+            ctx.on_file_changed(&conflict_path, &contents);
+        }
+        let _ = ctx.vault.write_file(relative_path, &recovered);
+        ctx.on_file_changed(relative_path, &recovered);
+    }
+    let (updates, _) = broadcast::channel(128);
+    let room = Arc::new(CollabRoom {
+        doc,
+        updates,
+        clients: std::sync::atomic::AtomicUsize::new(1),
+        state_path,
+        save_lock: tokio::sync::Mutex::new(()),
+    });
+    rooms.insert(key.clone(), room.clone());
+    state.active_collab_paths.lock().map_err(|_| ApiError::bad_request("Collaboration state unavailable"))?.insert(key.clone());
+    Ok((key, room, ctx))
+}
+
+async fn collab_socket(
+    ws: WebSocketUpgrade,
+    State(state): State<ServerState>,
+    Path(relative_path): Path<String>,
+) -> Result<impl IntoResponse, ApiError> {
+    let relative_path = relative_path.replace('\\', "/");
+    let (key, room, ctx) = get_or_create_collab_room(&state, &relative_path)?;
+    Ok(ws.on_upgrade(move |socket| handle_collab_socket(socket, state, key, relative_path, room, ctx)))
+}
+
+fn remove_collab_client(state: &ServerState, key: &str, room: &Arc<CollabRoom>) {
+    if let Ok(mut rooms) = state.collab_rooms.lock() {
+        let previous = room.clients.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+        if previous <= 1 && rooms.get(key).is_some_and(|current| Arc::ptr_eq(current, room)) {
+            rooms.remove(key);
+            if let Ok(mut active) = state.active_collab_paths.lock() { active.remove(key); }
+            let _ = std::fs::remove_file(&room.state_path);
+        }
+    }
+}
+
+async fn handle_collab_socket(
+    socket: WebSocket,
+    state: ServerState,
+    key: String,
+    relative_path: String,
+    room: Arc<CollabRoom>,
+    ctx: Arc<mindzj_lib::kernel::VaultContext>,
+) {
+    let mut receiver = room.updates.subscribe();
+    let snapshot = room.doc.transact().encode_state_as_update_v1(&StateVector::default());
+    let mut initial = Vec::with_capacity(snapshot.len() + 1);
+    initial.push(0);
+    initial.extend(snapshot);
+    let (mut sender, mut incoming) = socket.split();
+    if sender.send(Message::Binary(initial.into())).await.is_err() {
+        remove_collab_client(&state, &key, &room);
+        return;
+    }
+
+    loop {
+        tokio::select! {
+            incoming_message = incoming.next() => match incoming_message {
+                Some(Ok(Message::Binary(frame))) if frame.first() == Some(&1) => {
+                    let _save_guard = room.save_lock.lock().await;
+                    let update_bytes = &frame[1..];
+                    let Ok(update) = Update::decode_v1(update_bytes) else { continue; };
+                    if room.doc.transact_mut().apply_update(update).is_err() { continue; }
+                    let (content, snapshot) = {
+                        let txn = room.doc.transact();
+                        (room.doc.get_or_insert_text("markdown").get_string(&txn), txn.encode_state_as_update_v1(&StateVector::default()))
+                    };
+                    if atomic_write(&room.state_path, &snapshot).is_err() { continue; }
+                    if let Ok(file) = ctx.vault.write_file(&relative_path, &content) {
+                        ctx.on_file_changed(&relative_path, &content);
+                        let mut outgoing = Vec::with_capacity(update_bytes.len() + 1);
+                        outgoing.push(1);
+                        outgoing.extend_from_slice(update_bytes);
+                        let _ = room.updates.send(outgoing);
+                        let _ = file;
+                    }
+                }
+                Some(Ok(Message::Close(_))) | None | Some(Err(_)) => break,
+                _ => {}
+            },
+            update = receiver.recv() => match update {
+                Ok(update) => if sender.send(Message::Binary(update.into())).await.is_err() { break; },
+                Err(broadcast::error::RecvError::Lagged(_)) => {
+                    let snapshot = room.doc.transact().encode_state_as_update_v1(&StateVector::default());
+                    let mut frame = Vec::with_capacity(snapshot.len() + 1);
+                    frame.push(0);
+                    frame.extend(snapshot);
+                    if sender.send(Message::Binary(frame.into())).await.is_err() { break; }
+                }
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    }
+    remove_collab_client(&state, &key, &room);
 }
 
 async fn health() -> Json<Value> {
@@ -337,30 +516,35 @@ async fn command(
             let owner_name = optional_string(&args, "ownerName").unwrap_or_else(|| "MindZJ user".into());
             let force = args.get("force").and_then(Value::as_bool).unwrap_or(false);
             let key = edit_lock_key(&state, &relative_path)?;
-            let mut leases = state.edit_leases.lock().map_err(|_| ApiError::bad_request("Edit lock state unavailable"))?;
-            if leases.get(&key).is_some_and(|lease| lease.expires_at <= Instant::now()) {
-                leases.remove(&key);
-            }
-            let existing = leases.get(&key).map(|lease| (
-                lease.client_id.clone(), lease.owner_name.clone(), lease.token.clone(), lease.expires_at,
-            ));
-            if let Some((current_client, current_name, current_token, expires_at)) = existing {
-                if current_client == client_id {
-                    if let Some(lease) = leases.get_mut(&key) {
-                        lease.expires_at = Instant::now() + EDIT_LEASE_TTL;
+            let collaboration_active = state.active_collab_paths.lock().map_err(|_| ApiError::bad_request("Collaboration state unavailable"))?.contains(&key);
+            if collaboration_active {
+                json!({ "acquired": false, "ownerName": "Collaborative editing session" })
+            } else {
+                let mut leases = state.edit_leases.lock().map_err(|_| ApiError::bad_request("Edit lock state unavailable"))?;
+                if leases.get(&key).is_some_and(|lease| lease.expires_at <= Instant::now()) {
+                    leases.remove(&key);
+                }
+                let existing = leases.get(&key).map(|lease| (
+                    lease.client_id.clone(), lease.owner_name.clone(), lease.token.clone(), lease.expires_at,
+                ));
+                if let Some((current_client, current_name, current_token, expires_at)) = existing {
+                    if current_client == client_id {
+                        if let Some(lease) = leases.get_mut(&key) {
+                            lease.expires_at = Instant::now() + EDIT_LEASE_TTL;
+                        }
+                        json!({ "acquired": true, "ownerName": current_name, "token": current_token, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
+                    } else if force {
+                        let token = Uuid::new_v4().to_string();
+                        leases.insert(key, EditLease { client_id, owner_name: owner_name.clone(), token: token.clone(), expires_at: Instant::now() + EDIT_LEASE_TTL });
+                        json!({ "acquired": true, "ownerName": owner_name, "token": token, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
+                    } else {
+                        json!({ "acquired": false, "ownerName": current_name, "expiresInSeconds": expires_at.saturating_duration_since(Instant::now()).as_secs() })
                     }
-                    json!({ "acquired": true, "ownerName": current_name, "token": current_token, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
-                } else if force {
+                } else {
                     let token = Uuid::new_v4().to_string();
                     leases.insert(key, EditLease { client_id, owner_name: owner_name.clone(), token: token.clone(), expires_at: Instant::now() + EDIT_LEASE_TTL });
                     json!({ "acquired": true, "ownerName": owner_name, "token": token, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
-                } else {
-                    json!({ "acquired": false, "ownerName": current_name, "expiresInSeconds": expires_at.saturating_duration_since(Instant::now()).as_secs() })
                 }
-            } else {
-                let token = Uuid::new_v4().to_string();
-                leases.insert(key, EditLease { client_id, owner_name: owner_name.clone(), token: token.clone(), expires_at: Instant::now() + EDIT_LEASE_TTL });
-                json!({ "acquired": true, "ownerName": owner_name, "token": token, "expiresInSeconds": EDIT_LEASE_TTL.as_secs() })
             }
         }
         "renew_edit_lock" => {
@@ -691,11 +875,14 @@ async fn main() -> anyhow::Result<()> {
     let state = ServerState {
         kernel,
         edit_leases: Arc::new(Mutex::new(HashMap::new())),
+        collab_rooms: Arc::new(Mutex::new(HashMap::new())),
+        active_collab_paths: Arc::new(Mutex::new(HashSet::new())),
     };
     let api = Router::new()
         .route("/health", get(health))
         .route("/vaults", get(list_vaults))
         .route("/assets/{*relative_path}", get(asset))
+        .route("/collab/{*relative_path}", get(collab_socket))
         .route("/commands/{command}", post(command))
         .with_state(state);
     let app = Router::new()

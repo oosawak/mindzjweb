@@ -29,6 +29,14 @@ Für Organisationen mit Zugriffsbeschränkungen kann künftig je nach Bedarf ein
 
 Wählen Sie links eine Notiz zum Lesen aus. Wählen Sie Bearbeiten, nehmen Sie Änderungen vor und klicken Sie auf Speichern. Über das Menü der Seitenleiste können Sie Dateien und Ordner hinzufügen.
 
+## In Arbeit
+
+- Authentifizierung über Google Groups
+- Verbindung mit T2Code (voraussichtlich nur bei Verbindung mit einem lokalen KI-Server verfügbar)
+- Stem-Separation von Musikdateien und Umwandlung in MIDI (voraussichtlich nur bei Verbindung mit einem lokalen KI-Server verfügbar)
+
+Diese Funktionen werden derzeit geplant oder entwickelt und sind noch nicht verfügbar.
+
 ## Beispiele nach Branche
 
 In den [englischen Branchenbeispielen](Sample-en/Industry%20Samples.md) finden Sie fiktive Notizen aus Spieleentwicklung, Software, Videoproduktion, Bildung und Forschung sowie Fertigung und Bauwesen. Außerdem gibt es [japanische Beispiele](Sample-ja/業界別サンプル.md).

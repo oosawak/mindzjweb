@@ -29,6 +29,14 @@ For organizations that need access control, Google Group authentication may be a
 
 Select a note in the left sidebar to read it. Choose Edit to make changes, then press Save. Add files and folders from the sidebar menu.
 
+## Work in progress
+
+- Google Group authentication
+- T2Code connection (planned to be available only when connected to a Local AI Server)
+- Music stem separation and MIDI conversion (planned to be available only when connected to a Local AI Server)
+
+These features are under consideration or development and are not available yet.
+
 ## Industry samples
 
 Open the [English industry samples](Sample-en/Industry%20Samples.md) for fictional notes from game development, software, video production, education and research, and manufacturing and construction. Japanese samples are also available in [Japanese](Sample-ja/業界別サンプル.md).

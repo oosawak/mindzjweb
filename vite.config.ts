@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import solidPlugin from "vite-plugin-solid";
 import UnoCSS from "unocss/vite";
 import basicSsl from "@vitejs/plugin-basic-ssl";
+import { resolve } from "node:path";
 
 const host = process.env.TAURI_DEV_HOST;
 const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
@@ -21,7 +22,10 @@ export default defineConfig(async () => ({
     host: host || false,
     https: true,
     proxy: {
-      "/api": process.env.MINDZJ_API_TARGET || "http://127.0.0.1:3000",
+      "/api": {
+        target: process.env.MINDZJ_API_TARGET || "http://127.0.0.1:3000",
+        ws: true,
+      },
     },
     hmr: host
       ? { protocol: "ws", host, port: 1431 }
@@ -60,6 +64,12 @@ export default defineConfig(async () => ({
     sourcemap: !isPagesDemo,
     target: "esnext",
     minify: isTauriBuild ? false : "esbuild",
+    rollupOptions: isPagesDemo
+      ? undefined
+      : { input: {
+          main: resolve(process.cwd(), "index.html"),
+          collabPrototype: resolve(process.cwd(), "collab-prototype.html"),
+        } },
   },
 
   resolve: {

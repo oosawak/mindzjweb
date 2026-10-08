@@ -29,6 +29,14 @@ Pour les organisations ayant besoin d’un contrôle d’accès, une authentific
 
 Sélectionnez une note dans la barre latérale pour la lire. Choisissez Modifier, puis cliquez sur Enregistrer. Le menu de la barre latérale permet d’ajouter des fichiers et des dossiers.
 
+## En cours de développement
+
+- Authentification via Google Group
+- Connexion à T2Code (prévue uniquement lorsque le serveur d’IA local est connecté)
+- Séparation des stems audio et conversion en MIDI (prévues uniquement lorsque le serveur d’IA local est connecté)
+
+Ces fonctionnalités sont en cours d’étude ou de développement et ne sont pas encore disponibles.
+
 ## Exemples par secteur
 
 Consultez les [exemples sectoriels en anglais](Sample-en/Industry%20Samples.md) pour découvrir des notes fictives sur le jeu vidéo, les logiciels, la production audiovisuelle, l’éducation et la recherche, ainsi que la fabrication et la construction. Des [exemples en japonais](Sample-ja/業界別サンプル.md) sont également disponibles.

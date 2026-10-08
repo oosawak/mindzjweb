@@ -33,6 +33,12 @@
   <a href="README_ES.md">Español</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/oosawak/mindzjweb">MindZJWeb-GitHub-Repository</a> ·
+  <a href="https://oosawak.github.io/mindzjweb/web/">Web-Demo</a> ·
+  <a href="https://github.com/zjok/mindzj">MindZJ-Upstream</a>
+</p>
+
 ---
 
 <p align="center">

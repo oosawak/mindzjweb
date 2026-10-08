@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MindZJ 共同編集プロトタイプ</title>
+    <style>
+      :root { color-scheme: dark; font: 15px system-ui, sans-serif; background: #1e1e1e; color: #eee; }
+      body { margin: 0; padding: 24px; }
+      main { max-width: 1000px; margin: auto; }
+      h1 { font-size: 1.4rem; }
+      p, label { color: #bbb; }
+      .notice { padding: 12px 16px; border: 1px solid #806b2d; background: #352e1e; border-radius: 6px; }
+      form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+      label { display: grid; gap: 6px; }
+      input, button { font: inherit; color: inherit; background: #292929; border: 1px solid #555; border-radius: 5px; padding: 9px 11px; }
+      button { cursor: pointer; background: #245c88; border-color: #3676a9; }
+      button:disabled { opacity: .5; cursor: wait; }
+      #status { min-height: 1.5em; color: #a8d8ff; }
+      #editor { border: 1px solid #444; min-height: 60vh; }
+      .cm-editor { min-height: 60vh; }
+      .cm-scroller { overflow: auto; }
+      @media (max-width: 650px) { form { grid-template-columns: 1fr; } body { padding: 16px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>MindZJ 共同編集プロトタイプ</h1>
+      <p class="notice">Ubuntu Server版の試作です。入力内容はサーバーのMarkdownファイルへ保存されます。テスト用Vaultとノートを使ってください。</p>
+      <form id="connect-form">
+        <label>Vaultの絶対パス<input name="vaultPath" required placeholder="/home/user/Workspace/mindzj/Vaults/test" /></label>
+        <label>Vault名<input name="vaultName" required value="Collaboration" /></label>
+        <label>MarkdownファイルのVault内パス<input name="relativePath" required placeholder="shared-note.md" /></label>
+        <label>表示名<input name="displayName" value="Guest" /></label>
+        <div><button id="connect-button" type="submit">ノートに接続</button></div>
+      </form>
+      <div id="status" role="status">未接続</div>
+      <div id="editor"></div>
+    </main>
+    <script type="module" src="/src/collabPrototype.ts"></script>
+  </body>
+</html>

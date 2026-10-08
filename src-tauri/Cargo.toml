@@ -34,7 +34,9 @@ serde_json = "=1.0.149"
 
 # Async runtime
 tokio = { version = "=1.52.3", features = ["full"] }
-axum = "=0.8.8"
+futures-util = "=0.3.32"
+axum = { version = "=0.8.8", features = ["ws"] }
+yrs = { version = "=0.27.3", features = ["sync"] }
 tower-http = { version = "=0.6.10", features = ["fs"] }
 
 # File system watching

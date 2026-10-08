@@ -29,6 +29,14 @@ Para las organizaciones que necesiten controlar el acceso, se podrá considerar 
 
 Selecciona una nota en la lista de la izquierda para leerla. Elige Editar para cambiarla y pulsa Guardar. Usa el menú de la barra lateral para añadir archivos y carpetas.
 
+## En desarrollo
+
+- Autenticación mediante Google Groups
+- Conexión con T2Code (prevista solo cuando haya conexión con un servidor de IA local)
+- Separación de stems de audio y conversión a MIDI (previstas solo cuando haya conexión con un servidor de IA local)
+
+Estas funciones están en fase de planificación o desarrollo y todavía no están disponibles.
+
 ## Ejemplos por sector
 
 Consulta los [ejemplos sectoriales en inglés](Sample-en/Industry%20Samples.md) para ver notas ficticias de desarrollo de videojuegos, software, producción audiovisual, educación e investigación, y fabricación y construcción. También hay [ejemplos en japonés](Sample-ja/業界別サンプル.md).
