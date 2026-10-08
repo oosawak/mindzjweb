@@ -5,15 +5,15 @@
  *
  * Convention (matches / Markdown extensions):
  *
- *     ![alt text|400](path/to/img.png)       → width 400, height auto
- *     ![alt text|400x300](path/to/img.png)   → width 400, height 300
- *     ![|400](path/to/img.png)                → empty alt, width 400
+ *     ![alt text:400](path/to/img.png)       → width 400, height auto
+ *     ![alt text:400x300](path/to/img.png)   → width 400, height 300
+ *     ![alt text:x300](path/to/img.png)      → width auto, height 300
+ *     ![:400](path/to/img.png)                → empty alt, width 400
  *     ![alt text](path/to/img.png)            → no size, natural width
  *
- * The pipe delimiter `|` lives INSIDE the alt-text brackets. This
- * works with standard CommonMark parsers (the bracket contents are
- * opaque text to them), and keeps the markdown portable — other
- * editors render the same sizes.
+ * The size suffix lives inside the alt-text brackets. `:width` is
+ * preferred because `|` conflicts with Markdown table cell separators.
+ * The legacy `|width` form remains readable for existing notes.
  *
  * Both `Editor.tsx` (live preview) and `ReadingView.tsx` parse the
  * alt with `parseImageSize` on render, apply `width:<px>px; height:
@@ -24,7 +24,7 @@
  */
 
 export interface ImageSizeSpec {
-    /** Alt text with the `|size` suffix stripped. */
+    /** Alt text with the size suffix stripped. */
     altText: string;
     /** Parsed width in pixels, or null if not specified. */
     width: number | null;
@@ -34,30 +34,34 @@ export interface ImageSizeSpec {
 
 /**
  * Parse an image alt-text string that may contain a trailing
- * `|width` or `|widthxheight` size suffix.
+ * `:width`, `:widthxheight`, or `:xheight` size suffix. The legacy
+ * `|width` and `|widthxheight` forms are also accepted.
  *
  * Examples:
- *   parseImageSize("cat photo|400")    → { altText: "cat photo", width: 400, height: null }
- *   parseImageSize("cat photo|400x300") → { altText: "cat photo", width: 400, height: 300 }
+ *   parseImageSize("cat photo:400")    → { altText: "cat photo", width: 400, height: null }
+ *   parseImageSize("cat photo:400x300") → { altText: "cat photo", width: 400, height: 300 }
+ *   parseImageSize("cat photo:x300")   → { altText: "cat photo", width: null, height: 300 }
  *   parseImageSize("cat photo")         → { altText: "cat photo", width: null, height: null }
- *   parseImageSize("|400")              → { altText: "", width: 400, height: null }
+ *   parseImageSize(":400")              → { altText: "", width: 400, height: null }
  */
 export function parseImageSize(alt: string): ImageSizeSpec {
     // Regex anchored to end: any number of chars (non-greedy), then
-    // `|`, then a positive integer, then optionally `x<integer>`.
-    const m = alt.match(/^(.*?)\|(\d+)(?:x(\d+))?$/);
+    // `:` (preferred) or legacy `|`, then width, width x height, or x height.
+    const m = alt.match(/^(.*?)(?:\||:)(?:(\d+)(?:x(\d+))?|x(\d+))$/);
     if (!m) {
         return { altText: alt, width: null, height: null };
     }
-    const width = parseInt(m[2], 10);
-    const height = m[3] ? parseInt(m[3], 10) : null;
-    if (!Number.isFinite(width) || width <= 0) {
+    const width = m[2] ? parseInt(m[2], 10) : null;
+    const heightText = m[3] || m[4];
+    const height = heightText ? parseInt(heightText, 10) : null;
+    if ((width != null && (!Number.isFinite(width) || width <= 0)) ||
+        (height != null && (!Number.isFinite(height) || height <= 0))) {
         return { altText: alt, width: null, height: null };
     }
     return {
         altText: m[1],
         width,
-        height: height != null && Number.isFinite(height) && height > 0 ? height : null,
+        height,
     };
 }
 
@@ -65,17 +69,18 @@ export function parseImageSize(alt: string): ImageSizeSpec {
  * Build an alt-text string that encodes the given size.
  *
  * Examples:
- *   formatImageAlt("cat photo", 400, null) → "cat photo|400"
- *   formatImageAlt("cat photo", 400, 300)  → "cat photo|400x300"
+ *   formatImageAlt("cat photo", 400, null) → "cat photo:400"
+ *   formatImageAlt("cat photo", 400, 300)  → "cat photo:400x300"
+ *   formatImageAlt("cat photo", null, 300) → "cat photo:x300"
  *   formatImageAlt("cat photo", null, null) → "cat photo"
- *   formatImageAlt("", 400, null)          → "|400"
+ *   formatImageAlt("", 400, null)          → ":400"
  */
 export function formatImageAlt(
     altText: string,
     width: number | null,
     height: number | null,
 ): string {
-    if (width == null) return altText;
-    if (height != null) return `${altText}|${width}x${height}`;
-    return `${altText}|${width}`;
+    if (width == null) return height != null ? `${altText}:x${height}` : altText;
+    if (height != null) return `${altText}:${width}x${height}`;
+    return `${altText}:${width}`;
 }

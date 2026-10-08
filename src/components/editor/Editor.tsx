@@ -2630,6 +2630,19 @@ export const Editor: Component<EditorProps> = (props) => {
             });
         };
 
+        const handleInsertLink = (e: Event) => {
+            if (!isPaneActive() || !editorView) return;
+            const detail = (e as CustomEvent<{ path?: string; text?: string }>).detail;
+            if (!detail?.text || (detail.path && detail.path !== currentFilePath)) return;
+            const { from, to } = editorView.state.selection.main;
+            const cursor = from + detail.text.length;
+            editorView.dispatch({
+                changes: { from, to, insert: detail.text },
+                selection: { anchor: cursor },
+            });
+            editorView.focus();
+        };
+
         document.addEventListener("mindzj:force-save", handleForceSave);
         document.addEventListener(
             "mindzj:toggle-view-mode-with-save",
@@ -2637,6 +2650,7 @@ export const Editor: Component<EditorProps> = (props) => {
         );
         document.addEventListener("mindzj:editor-command", handleEditorCommand);
         document.addEventListener("mindzj:insert-text", handleInsertText);
+        document.addEventListener("mindzj:insert-link", handleInsertLink);
 
         onCleanup(() => {
             document.removeEventListener("mindzj:force-save", handleForceSave);
@@ -2652,6 +2666,7 @@ export const Editor: Component<EditorProps> = (props) => {
                 "mindzj:insert-text",
                 handleInsertText,
             );
+            document.removeEventListener("mindzj:insert-link", handleInsertLink);
             // Persist undo/redo history BEFORE destroying the view so
             // the next Editor remount (e.g. after exiting reading mode)
             // can restore the chain. This is the Ctrl+E toggle path —

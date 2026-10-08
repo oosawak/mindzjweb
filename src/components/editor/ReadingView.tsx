@@ -401,11 +401,16 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
         }
 
         // --- Table ---
-        if (
+        const tableSeparator = /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+        const hasTableHeader =
             line.includes("|") &&
             i + 1 < lines.length &&
-            /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(lines[i + 1])
-        ) {
+            tableSeparator.test(lines[i + 1]);
+        const isBarePipeRow = (value: string) => {
+            const trimmed = value.trim();
+            return trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length > 2;
+        };
+        if (hasTableHeader) {
             closeList();
             const tableLines: string[] = [];
             while (i < lines.length && lines[i].includes("|")) {
@@ -413,6 +418,20 @@ function markdownToHtml(md: string, ctx: RenderContext): string {
                 i++;
             }
             html.push(renderTable(tableLines, ctx));
+            continue;
+        }
+        if (isBarePipeRow(line) && !tableSeparator.test(line)) {
+            closeList();
+            const tableLines: string[] = [];
+            while (
+                i < lines.length &&
+                isBarePipeRow(lines[i]) &&
+                !tableSeparator.test(lines[i])
+            ) {
+                tableLines.push(lines[i]);
+                i++;
+            }
+            html.push(renderTable(tableLines, ctx, true));
             continue;
         }
 
@@ -594,31 +613,35 @@ function renderInline(text: string, ctx: RenderContext): string {
     // Images: ![alt](src) — with optional `|width` / `|widthxheight`
     // suffix in the alt text for persisted display size (see
     // `utils/imageSize.ts`).
-    result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
-        const rawSrc = unescapeHtml(src);
-        const resolvedSrc = resolveImageSrc(
-            rawSrc,
-            ctx.vaultRoot,
-            ctx.currentFilePath,
-        );
-        // Split `alt|width[xheight]` so the rendered alt text
-        // doesn't include the size suffix, and the inline
-        // style gets the persisted dimensions.
-        const { altText, width, height } = parseImageSize(alt);
-        const escapedAlt = escapeAttr(altText);
-        const styleBits: string[] = [];
-        if (width != null) {
-            styleBits.push(`width:${width}px`);
-            styleBits.push(
-                height != null ? `height:${height}px` : "height:auto",
+    // Permit parentheses inside vault paths, such as `Games(Web)/image.jpg`.
+    result = result.replace(
+        /!\[([^\]]*)\]\(((?:\\.|[^()]+|\([^()]*\))*)\)/g,
+        (_, alt, src) => {
+            const rawSrc = unescapeHtml(src);
+            const resolvedSrc = resolveImageSrc(
+                rawSrc,
+                ctx.vaultRoot,
+                ctx.currentFilePath,
             );
-        }
-        const styleAttr =
-            styleBits.length > 0 ? ` style="${styleBits.join(";")}"` : "";
-        const dataWidthAttr =
-            width != null ? ` data-ppi-wheel-inline-width="${width}"` : "";
-        return `<span class="image-embed internal-embed is-loaded"><img src="${resolvedSrc}" data-src="${escapeAttr(rawSrc)}" alt="${escapedAlt}" class="mz-rv-image"${styleAttr}${dataWidthAttr} loading="lazy" /></span>`;
-    });
+            // Split `alt:width[xheight]` or `alt:xheight` so the rendered alt text
+            // doesn't include the size suffix, and the inline
+            // style gets the persisted dimensions.
+            const { altText, width, height } = parseImageSize(alt);
+            const escapedAlt = escapeAttr(altText);
+            const styleBits: string[] = [];
+            if (width != null || height != null) {
+                styleBits.push(width != null ? `width:${width}px` : "width:auto");
+                styleBits.push(height != null ? `height:${height}px` : "height:auto");
+            }
+            const styleAttr =
+                styleBits.length > 0 ? ` style="${styleBits.join(";")}"` : "";
+            const dataWidthAttr =
+                width != null ? ` data-ppi-wheel-inline-width="${width}"` : "";
+            const dataHeightAttr =
+                width == null && height != null ? ` data-ppi-wheel-inline-height="${height}"` : "";
+            return `<span class="image-embed internal-embed is-loaded"><img src="${resolvedSrc}" data-src="${escapeAttr(rawSrc)}" alt="${escapedAlt}" class="mz-rv-image"${styleAttr}${dataWidthAttr}${dataHeightAttr} loading="lazy" /></span>`;
+        },
+    );
 
     // Wiki links: [[target|display]] or [[target]]
     result = result.replace(
@@ -717,34 +740,70 @@ function renderInline(text: string, ctx: RenderContext): string {
 // Table renderer
 // ---------------------------------------------------------------------------
 
-function renderTable(lines: string[], ctx: RenderContext): string {
-    const parseRow = (line: string): string[] =>
-        line
-            .replace(/^\|/, "")
-            .replace(/\|$/, "")
-            .split("|")
-            .map((cell) => cell.trim());
+function renderTable(lines: string[], ctx: RenderContext, headerless = false): string {
+    const parseRow = (line: string): string[] => {
+        const source = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+        const cells: string[] = [];
+        let cell = "";
+        let bracketDepth = 0;
+        let parenDepth = 0;
+        let escaped = false;
 
-    if (lines.length < 2) return "";
+        for (const char of source) {
+            if (escaped) {
+                cell += char;
+                escaped = false;
+                continue;
+            }
+            if (char === "\\") {
+                cell += char;
+                escaped = true;
+                continue;
+            }
+            if (char === "[") bracketDepth += 1;
+            if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+            if (char === "(") parenDepth += 1;
+            if (char === ")" && parenDepth > 0) parenDepth -= 1;
 
-    const headerCells = parseRow(lines[0]);
-    const alignRow = parseRow(lines[1]);
+            if (char === "|" && bracketDepth === 0 && parenDepth === 0) {
+                cells.push(cell.trim());
+                cell = "";
+            } else {
+                cell += char;
+            }
+        }
+        cells.push(cell.trim());
+        return cells;
+    };
+
+    if (lines.length === 0 || (!headerless && lines.length < 2)) return "";
+
+    const headerCells = headerless ? [] : parseRow(lines[0]);
+    const alignRow = headerless ? [] : parseRow(lines[1]);
     const aligns = alignRow.map((cell) => {
         if (cell.startsWith(":") && cell.endsWith(":")) return "center";
         if (cell.endsWith(":")) return "right";
         return "left";
     });
 
-    let html = '<table class="mz-rv-table"><thead><tr>';
-    for (let j = 0; j < headerCells.length; j++) {
-        html += `<th style="text-align:${aligns[j] || "left"}">${renderInline(headerCells[j], ctx)}</th>`;
-    }
-    html += "</tr></thead><tbody>";
-
-    for (let i = 2; i < lines.length; i++) {
-        const cells = parseRow(lines[i]);
-        html += "<tr>";
+    const dataRows = headerless ? lines : lines.slice(2);
+    const columnCount = headerless
+        ? Math.max(...dataRows.map((row) => parseRow(row).length))
+        : headerCells.length;
+    let html = `<table class="mz-rv-table${headerless ? " mz-rv-table-plain" : ""}">`;
+    if (!headerless) {
+        html += "<thead><tr>";
         for (let j = 0; j < headerCells.length; j++) {
+            html += `<th style="text-align:${aligns[j] || "left"}">${renderInline(headerCells[j], ctx)}</th>`;
+        }
+        html += "</tr></thead>";
+    }
+    html += "<tbody>";
+
+    for (const row of dataRows) {
+        const cells = parseRow(row);
+        html += "<tr>";
+        for (let j = 0; j < columnCount; j++) {
             html += `<td style="text-align:${aligns[j] || "left"}">${renderInline(cells[j] || "", ctx)}</td>`;
         }
         html += "</tr>";

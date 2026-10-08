@@ -367,6 +367,7 @@ const MESSAGES: Record<string, TranslationMap> = {
   "app.cycleSidebarWidth": { "zh-CN": "切换侧边栏宽度（当前 {width} 像素）", en: "Change sidebar width (currently {width}px)", ja: "サイドバー幅を切り替え（現在 {width}px）", fr: "Changer la largeur de la barre latérale (actuellement {width} px)", de: "Seitenleistenbreite ändern (aktuell {width} px)", es: "Cambiar ancho de barra lateral (actualmente {width} px)" },
   "calendar.otherNotes": { "zh-CN": "其他笔记", en: "Other notes", ja: "その他のノート", fr: "Autres notes", de: "Weitere Notizen", es: "Otras notas" },
   "context.insertHtmlEmbed": { "zh-CN": "在笔记中嵌入 HTML 页面", en: "Embed HTML page in note", ja: "ノートに HTML ページを埋め込む", fr: "Intégrer la page HTML dans la note", de: "HTML-Seite in Notiz einbetten", es: "Insertar página HTML en la nota" },
+  "context.insertVaultLink": { "zh-CN": "插入到笔记", en: "Insert link into note", ja: "ノートにリンクを挿入", fr: "Insérer le lien dans la note", de: "Link in Notiz einfügen", es: "Insertar enlace en la nota" },
   "settings.images": { "zh-CN": "图片", en: "Images", ja: "画像", fr: "Images", de: "Bilder", es: "Imágenes" },
   "settings.ai": { "zh-CN": "AI", en: "AI", ja: "AI", fr: "IA", de: "KI", es: "IA" },
   "settings.aiProviderSection": { "zh-CN": "模型接入", en: "Model access", ja: "モデル接続", fr: "Accès au modèle", de: "Modellzugang", es: "Acceso al modelo" },

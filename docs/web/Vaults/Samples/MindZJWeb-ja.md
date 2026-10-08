@@ -1,3 +1,13 @@
+
+# Lyre3 Games について
+Lyre3 Gamesは HTML + WASM(Rustg)を使ったゲーム制作をしています。
+ゲーム制作に必要なツールなどの開発もしています。
+
+[[Lyre3 Games(Web Game・Application)/Lyre3 Gamesリンク集.md|Lyre3 Gamesリンク集]]
+
+| ![Lyre3GamesCard.jpg:x400](/Lyre3 Games(Web Game・Application)/Lyre3GamesCard.jpg) | ![Sample.webp:x400](/Sample.webp) |
+
+
 # MindZJWeb について
 
 MindZJWeb は、Markdown の資料をまとめて扱う Web 版ノートアプリです。

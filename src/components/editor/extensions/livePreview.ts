@@ -331,8 +331,8 @@ class ImageWidget extends WidgetType {
     }
 
     toDOM(view: EditorView): HTMLElement {
-        // Parse the `|width` or `|widthxheight` suffix out of the
-        // alt text so (a) the displayed alt text is clean and (b)
+        // Parse the size suffix out of the alt text so (a) the
+        // displayed alt text is clean and (b)
         // we can apply the persisted display size. The raw alt
         // (including suffix) is still kept in `this.alt` so the
         // wheel-zoom onResize below can find the original string
@@ -362,10 +362,14 @@ class ImageWidget extends WidgetType {
         // Apply persisted display size from the markdown alt. We
         // set the width BEFORE the image finishes loading so there's
         // no reflow jitter when the natural size comes in.
-        if (width != null) {
-            img.style.width = `${width}px`;
+        if (width != null || height != null) {
+            img.style.width = width != null ? `${width}px` : "auto";
             img.style.height = height != null ? `${height}px` : "auto";
-            img.setAttribute("data-ppi-wheel-inline-width", String(width));
+            if (width != null) {
+                img.setAttribute("data-ppi-wheel-inline-width", String(width));
+            } else if (height != null) {
+                img.setAttribute("data-ppi-wheel-inline-height", String(height));
+            }
         }
         img.onerror = () => {
             img.style.display = "none";
@@ -1849,7 +1853,7 @@ function buildDecorationsImpl(
         //    the user can edit the link/alt. The image stays
         //    below it.
         {
-            const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+            const imgRegex = /!\[([^\]]*)\]\(((?:\\.|[^()]+|\([^()]*\))*)\)/g;
             let imgMatch;
             while ((imgMatch = imgRegex.exec(text)) !== null) {
                 const start = line.from + imgMatch.index;

@@ -195,6 +195,9 @@
     max-width: none !important;
     max-height: none !important;
 }
+.cm-editor .cm-content img[data-ppi-wheel-inline-height] {
+    max-height: none !important;
+}
 
 /* Horizontal rule */
 .cm-editor .cm-content .cm-hr {
@@ -1811,6 +1814,9 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
     max-width: none !important;
     max-height: none !important;
 }
+.mz-reading-view img[data-ppi-wheel-inline-height] {
+    max-height: none !important;
+}
 
 /* Blockquote */
 .mz-reading-view blockquote.mz-rv-blockquote {
@@ -2046,6 +2052,20 @@ html[data-theme-mode="light"]
 
 .mz-reading-view .mz-rv-table tr:hover td {
     background: var(--mz-bg-hover);
+}
+
+/* Headerless pipe rows are used as simple borderless image grids. */
+.mz-reading-view .mz-rv-table-plain {
+    width: max-content;
+    max-width: 100%;
+    table-layout: auto;
+}
+.mz-reading-view .mz-rv-table-plain td,
+.mz-reading-view .mz-rv-table-plain tr:hover td {
+    border: 0;
+    background: transparent;
+    padding: 4px 8px;
+    vertical-align: top;
 }
 
 /* Code blocks */

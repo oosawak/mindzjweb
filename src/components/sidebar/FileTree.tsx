@@ -1233,6 +1233,25 @@ export const FileTree: Component<FileTreeProps> = (props) => {
                 icon: "🔗",
                 action: () => { void copyFileUrl(path); },
             });
+            const activeNotePath = vaultStore.activeFile()?.path ?? "";
+            if (
+                isMarkdownPath(activeNotePath) &&
+                editorStore.getViewModeForFile(activeNotePath) !== "reading"
+            ) {
+                const imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "avif", "svg"];
+                const linkText = imageExtensions.includes(extension)
+                    ? `![${name}](/${path})`
+                    : `[[${path}|${displayName(path)}]]`;
+                items.push({
+                    label: t("context.insertVaultLink"),
+                    icon: "↳",
+                    action: () => {
+                        document.dispatchEvent(new CustomEvent("mindzj:insert-link", {
+                            detail: { path: activeNotePath, text: linkText },
+                        }));
+                    },
+                });
+            }
             if ((extension === "html" || extension === "htm") && isMarkdownPath(vaultStore.activeFile()?.path ?? "")) {
                 items.push({
                     label: t("context.insertHtmlEmbed"),
