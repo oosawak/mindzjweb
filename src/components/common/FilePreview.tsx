@@ -316,7 +316,7 @@ export const FilePreview: Component<{
                             <iframe
                                 src={htmlPreviewUrl()}
                                 title={fileName()}
-                                sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals"
+                                sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock"
                                 referrerPolicy="no-referrer"
                                 onLoad={(event) => {
                                     if (photoCraftImagePath()) void sendPhotoCraftImage(event.currentTarget);

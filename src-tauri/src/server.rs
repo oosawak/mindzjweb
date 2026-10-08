@@ -546,7 +546,7 @@ async fn asset(
         headers.insert(
             header::CONTENT_SECURITY_POLICY,
             HeaderValue::from_static(
-                "sandbox allow-scripts allow-forms allow-popups allow-downloads allow-modals; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
+                "sandbox allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
             ),
         );
 

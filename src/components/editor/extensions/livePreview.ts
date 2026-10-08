@@ -480,7 +480,7 @@ class HtmlEmbedWidget extends WidgetType {
         iframe.title = this.path.split("/").pop() || "HTML page";
         iframe.loading = "lazy";
         iframe.referrerPolicy = "no-referrer";
-        iframe.setAttribute("sandbox", "allow-scripts allow-forms allow-popups allow-downloads allow-modals");
+        iframe.setAttribute("sandbox", "allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock");
         wrapper.appendChild(iframe);
         return wrapper;
     }

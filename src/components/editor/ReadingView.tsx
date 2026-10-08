@@ -607,7 +607,7 @@ function renderInline(text: string, ctx: RenderContext): string {
         if (!/\.html?$/i.test(pagePath)) return _;
         const src = toVaultAssetUrl(ctx.vaultRoot, pagePath);
         const title = escapeAttr((label || pagePath.split("/").pop() || "HTML page").trim());
-        return `<div class="mz-rv-html-embed"><iframe src="${escapeAttr(src)}" title="${title}" loading="lazy" sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals" referrerpolicy="no-referrer"></iframe></div>`;
+        return `<div class="mz-rv-html-embed"><iframe src="${escapeAttr(src)}" title="${title}" loading="lazy" sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>`;
     });
 
     // Images: ![alt](src) — with optional `|width` / `|widthxheight`
