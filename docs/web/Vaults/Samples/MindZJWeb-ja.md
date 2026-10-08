@@ -1,6 +1,6 @@
 
 # Lyre3 Games について
-Lyre3 Gamesは HTML + WASM(Rustg)を使ったゲーム制作をしています。
+Lyre3 Gamesは AI ,HTML, WASM(Rust)を使ったゲーム制作をしています。
 ゲーム制作に必要なツールなどの開発もしています。
 
 [[Lyre3 Games(Web Game・Application)/Lyre3 Gamesリンク集.md|Lyre3 Gamesリンク集]]
