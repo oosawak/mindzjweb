@@ -98,6 +98,10 @@ export async function openFileRouted(relativePath: string): Promise<void> {
 }
 
 export async function readInternetShortcutUrl(relativePath: string): Promise<string> {
+    return (await readInternetShortcut(relativePath)).url;
+}
+
+export async function readInternetShortcut(relativePath: string): Promise<{ url: string; openExternally: boolean }> {
     const shortcut = await invoke<{ content: string }>("read_file", { relativePath });
     const content = shortcut.content.replace(/^\uFEFF/, "");
     const target = content.match(/^\s*URL\s*=\s*(.*?)\s*$/im)?.[1]
@@ -109,7 +113,8 @@ export async function readInternetShortcutUrl(relativePath: string): Promise<str
     if (url.protocol !== "http:" && url.protocol !== "https:") {
         throw new Error("Only HTTP and HTTPS links are allowed in .url files");
     }
-    return url.toString();
+    const openExternally = /^\s*MindZJ-OpenMode\s*=\s*external\s*$/im.test(content);
+    return { url: url.toString(), openExternally };
 }
 
 /** Open a .url target in the user's external browser. Call directly from a click. */

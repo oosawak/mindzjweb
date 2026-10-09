@@ -5,7 +5,7 @@ import { vaultStore } from "../../stores/vault";
 import { displayName } from "../../utils/displayName";
 import { getFileExtension } from "../../utils/fileTypes";
 import { toVaultAssetUrl } from "../../utils/vaultPaths";
-import { readInternetShortcutUrl } from "../../utils/openFileRouted";
+import { openInternetShortcutExternally, readInternetShortcut } from "../../utils/openFileRouted";
 import { t } from "../../i18n";
 import { editLockStore } from "../../stores/editLock";
 import type { FileContent } from "../../stores/vault";
@@ -19,6 +19,7 @@ export const FilePreview: Component<{
     const extension = createMemo(() => getFileExtension(props.filePath).toUpperCase() || "FILE");
     const isInternetShortcut = createMemo(() => extension() === "URL");
     const [shortcutUrl, setShortcutUrl] = createSignal<string | null>(null);
+    const [shortcutOpenExternally, setShortcutOpenExternally] = createSignal(false);
     const [shortcutError, setShortcutError] = createSignal("");
     const [editingSource, setEditingSource] = createSignal(false);
     const [sourceContent, setSourceContent] = createSignal("");
@@ -168,10 +169,14 @@ export const FilePreview: Component<{
         const relativePath = props.filePath;
         let cancelled = false;
         setShortcutUrl(null);
+        setShortcutOpenExternally(false);
         setShortcutError("");
-        void readInternetShortcutUrl(relativePath)
-            .then((url) => {
-                if (!cancelled) setShortcutUrl(url);
+        void readInternetShortcut(relativePath)
+            .then((shortcut) => {
+                if (!cancelled) {
+                    setShortcutUrl(shortcut.url);
+                    setShortcutOpenExternally(shortcut.openExternally);
+                }
             })
             .catch((error) => {
                 console.error("Could not read Internet Shortcut:", error);
@@ -302,13 +307,22 @@ export const FilePreview: Component<{
                                 }
                             >
                                 {(url) => (
-                                    <iframe
-                                        src={url()}
-                                        title={fileName()}
-                                        sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-pointer-lock"
-                                        referrerPolicy="no-referrer"
-                                        style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
-                                    />
+                                    <Show when={shortcutOpenExternally()} fallback={
+                                        <iframe
+                                            src={url()}
+                                            title={fileName()}
+                                            sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-pointer-lock"
+                                            referrerPolicy="no-referrer"
+                                            style={{ flex: "1", width: "100%", height: "100%", border: "0", background: "var(--mz-bg-primary)" }}
+                                        />
+                                    }>
+                                        <div style={{ flex: "1", display: "flex", "flex-direction": "column", "align-items": "center", "justify-content": "center", gap: "16px", padding: "24px", color: "var(--mz-text-primary)", "text-align": "center" }}>
+                                            <div>{t("filePreview.urlShortcutExternalNotice")}</div>
+                                            <button onClick={() => void openInternetShortcutExternally(props.filePath)} style={actionButtonStyle(true)}>
+                                                {t("filePreview.openExternally")}
+                                            </button>
+                                        </div>
+                                    </Show>
                                 )}
                             </Show>
                         </Show>

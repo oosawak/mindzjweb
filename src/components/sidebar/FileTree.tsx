@@ -9,6 +9,7 @@ import { displayName } from "../../utils/displayName";
 import { fetchBacklinks, updateBacklinksOnFileRename } from "../../utils/linkUpdater";
 import {
     openFileRouted,
+    readInternetShortcut,
     openInternetShortcutExternally,
 } from "../../utils/openFileRouted";
 import { isMarkdownPath } from "../../utils/fileTypes";
@@ -45,10 +46,11 @@ const [folderOpenState, setFolderOpenState] = createSignal<Record<string, boolea
 const [registeredFolders, setRegisteredFolders] =
     createSignal<Record<string, number>>({});
 const [allFoldersCollapsed, setAllFoldersCollapsed] = createSignal(false);
+const [externalShortcutPaths, setExternalShortcutPaths] = createSignal<Set<string>>(new Set());
 
 export { allFoldersCollapsed };
 
-function defaultFolderOpen(depth: number, mode = folderVisibilityMode()) {
+function defaultFolderOpen(mode = folderVisibilityMode()) {
     if (mode === "collapse") return false;
     if (mode === "expand") return true;
     return false;
@@ -81,17 +83,17 @@ function syncRegisteredFolders(entries: VaultEntry[], rootDepth = 0) {
     setRegisteredFolders(nextRegisteredFolders);
     setFolderOpenState((prev) => {
         const next: Record<string, boolean> = {};
-        for (const [path, depth] of Object.entries(nextRegisteredFolders)) {
-            next[path] = path in prev ? prev[path]! : defaultFolderOpen(depth);
+        for (const path of Object.keys(nextRegisteredFolders)) {
+            next[path] = path in prev ? prev[path]! : defaultFolderOpen();
         }
         syncAllFoldersCollapsed(next, nextRegisteredFolders);
         return next;
     });
 }
 
-function getFolderOpen(path: string, depth: number) {
+function getFolderOpen(path: string) {
     const current = folderOpenState();
-    return path in current ? current[path]! : defaultFolderOpen(depth);
+    return path in current ? current[path]! : defaultFolderOpen();
 }
 
 function setFolderOpen(path: string, depth: number, open: boolean) {
@@ -1104,6 +1106,33 @@ export const FileTree: Component<FileTreeProps> = (props) => {
         syncRegisteredFolders(props.entries, props.depth ?? 0);
     });
 
+    let shortcutScanVersion = 0;
+    createEffect(() => {
+        if ((props.depth ?? 0) !== 0) return;
+        const version = ++shortcutScanVersion;
+        const paths: string[] = [];
+        const collectShortcuts = (entries: VaultEntry[]) => {
+            for (const entry of entries) {
+                if (!entry.is_dir && entry.extension.toLowerCase() === "url") {
+                    paths.push(entry.relative_path);
+                }
+                if (entry.children) collectShortcuts(entry.children);
+            }
+        };
+        collectShortcuts(props.entries);
+        void Promise.all(paths.map(async (path) => {
+            try {
+                return (await readInternetShortcut(path)).openExternally ? path : null;
+            } catch {
+                return null;
+            }
+        })).then((results) => {
+            if (version === shortcutScanVersion) {
+                setExternalShortcutPaths(new Set(results.filter((path): path is string => path !== null)));
+            }
+        });
+    });
+
     async function showInExplorer(path: string) {
         try {
             await invoke("reveal_in_file_manager", { relativePath: path });
@@ -1394,6 +1423,7 @@ export const FileTree: Component<FileTreeProps> = (props) => {
                         fallback={
                             <FileItem
                                 entry={entry}
+                                isExternalShortcut={externalShortcutPaths().has(entry.relative_path)}
                                 onClick={(event) => {
                                     if (/\.url$/i.test(entry.name) && (event.ctrlKey || event.metaKey)) {
                                         event.preventDefault();
@@ -1500,7 +1530,7 @@ const FolderItem: Component<{
     sortMode: SortMode;
     sortOrder: SortOrder;
 }> = (props) => {
-    const isOpen = () => getFolderOpen(props.entry.relative_path, props.depth);
+    const isOpen = () => getFolderOpen(props.entry.relative_path);
     const pad = () => `${12 + props.depth * 16}px`;
 
     return (
@@ -1625,6 +1655,7 @@ const FolderItem: Component<{
 
 const FileItem: Component<{
     entry: VaultEntry;
+    isExternalShortcut: boolean;
     onClick: (event: MouseEvent) => void;
     onContextMenu: (e: MouseEvent) => void;
     isActive: boolean;
@@ -1684,6 +1715,13 @@ const FileItem: Component<{
                             <span style={{ "font-size": "9px", color: "var(--mz-text-muted)", "flex-shrink": "0", "text-transform": "uppercase", "font-weight": "600", "letter-spacing": "0.5px", "pointer-events": "none" }}>
                                 MINDZJ
                             </span>
+                        </Show>
+                        <Show when={props.isExternalShortcut}>
+                            <span
+                                title={t("fileTree.externalShortcut")}
+                                aria-label={t("fileTree.externalShortcut")}
+                                style={{ "font-size": "12px", color: "#60a5fa", "font-weight": "700", "flex-shrink": "0", "pointer-events": "none" }}
+                            >↗</span>
                         </Show>
                         <Show when={fileBadge().label}>
                             <span style={{ "font-size": "8px", color: fileBadge().color, background: fileBadge().background, "flex-shrink": "0", "font-weight": "700", "letter-spacing": "0.2px", "pointer-events": "none", padding: "1px 3px", "border-radius": "3px" }}>
