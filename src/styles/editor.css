@@ -1674,6 +1674,7 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
 .mz-reading-view {
     --mz-reading-list-indent-step: 36px;
     --mz-reading-list-guide-offset: 18px;
+    container-type: inline-size;
     word-wrap: break-word;
     overflow-wrap: break-word;
     /* Explicitly allow text selection + copy — some ancestors (e.g. the
@@ -1805,14 +1806,16 @@ html[data-theme-mode="light"] .mz-lp-checkbox:checked {
 .mz-reading-view .mz-rv-image {
     max-width: 100%;
     max-height: 500px;
+    height: auto;
     border-radius: 6px;
     display: block;
     margin: 8px 0;
 }
 /* When pixel-perfect-image sets inline width in reading view */
 .mz-reading-view img[data-ppi-wheel-inline-width] {
-    max-width: none !important;
+    max-width: 100% !important;
     max-height: none !important;
+    height: auto !important;
 }
 .mz-reading-view img[data-ppi-wheel-inline-height] {
     max-height: none !important;
@@ -2066,6 +2069,32 @@ html[data-theme-mode="light"]
     background: transparent;
     padding: 4px 8px;
     vertical-align: top;
+}
+
+/* Stack image grids when the reading pane is too narrow for side-by-side images. */
+@container (max-width: 640px) {
+    .mz-reading-view .mz-rv-table-plain {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .mz-reading-view .mz-rv-table-plain tbody,
+    .mz-reading-view .mz-rv-table-plain tr,
+    .mz-reading-view .mz-rv-table-plain td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .mz-reading-view .mz-rv-table-plain td {
+        padding: 4px 0;
+    }
+
+    .mz-reading-view .mz-rv-table-plain .mz-rv-image {
+        max-width: 100%;
+        height: auto;
+    }
 }
 
 /* Code blocks */
